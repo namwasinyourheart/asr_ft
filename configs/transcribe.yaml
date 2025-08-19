@@ -1,0 +1,29 @@
+model:
+    # model_type: seq_2_seq_lm #causal_lm
+    model_type: asr 
+    pretrained_model_name_or_path: "/home/nampv1/models/asr/vnpost-2/snapshots/e37978b90ca9030d5170a5c07aadb050351a65bb" 
+    # pretrained_model_name_or_path: openai/whisper-small
+    pretrained_processor_name_or_path: 
+    load_in_4bit: true
+    load_in_8bit: false
+    bnb_4bit_compute_dtype: null
+    bnb_4bit_quant_type: "nf4"
+    bnb_4bit_use_double_quant: false
+    bnb_4bit_quant_storage: "uint8"
+    torch_dtype: bfloat16
+    attn_implementation: #flash_attention_2
+    device_map: null
+    low_cpu_mem_usage: null
+    # adapter_path: "/home/nampv1/models/asr/vnpost-1/"
+    adapter_path: null
+
+input:
+    audio_path: data/examples/example2.wav
+
+
+generate:
+    gen_args:
+        max_new_tokens: 100
+
+device: 
+    use_cpu: true
