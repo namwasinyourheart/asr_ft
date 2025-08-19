@@ -78,7 +78,7 @@ def get_model_class(pretrained_model_name_or_path):
 
     return AutoModel  # Default to AutoModel if class is not found
 
-def load_model(model_args, device_args) -> PreTrainedModel:
+def load_whisper_model(model_args, device_args) -> PreTrainedModel:
 
     attn_implementation = model_args['attn_implementation']
 
@@ -156,17 +156,45 @@ def set_torch_dtype_and_attn_implementation():
 
 
 
+# def get_quantization_config(model_args                          
+# ) -> BitsAndBytesConfig | None:
+#     if model_args['load_in_4bit']:
+#         # torch_dtype, attn_implementation = set_torch_dtype_and_attn_implementation()
+        
+#         # if model_args['bnb_4bit_compute_dtype']:
+#         #     bnb_4bit_compute_dtype = model_args['bnb_4bit_compute_dtype']
+#         # else:
+#         #     bnb_4bit_compute_dtype = torch_dtype
+
+#         bnb_4bit_compute_dtype = model_args['bnb_4bit_compute_dtype']
+
+#         quantization_config = BitsAndBytesConfig(
+#             load_in_4bit=True,
+#             bnb_4bit_compute_dtype=bnb_4bit_compute_dtype,
+#             bnb_4bit_quant_type=model_args['bnb_4bit_quant_type'],
+#             bnb_4bit_use_double_quant=model_args['bnb_4bit_use_double_quant'],
+#             bnb_4bit_quant_storage=model_args['bnb_4bit_quant_storage'],
+#         ).to_dict()
+#     elif model_args['load_in_8bit']:
+#         quantization_config = BitsAndBytesConfig(
+#             load_in_8bit=True,
+#         ).to_dict()
+#     else:
+#         quantization_config = None
+
+#     return quantization_config
+
+
+
 def get_quantization_config(model_args                          
 ) -> BitsAndBytesConfig | None:
     if model_args['load_in_4bit']:
-        # torch_dtype, attn_implementation = set_torch_dtype_and_attn_implementation()
+        torch_dtype, attn_implementation = set_torch_dtype_and_attn_implementation()
         
-        # if model_args['bnb_4bit_compute_dtype']:
-        #     bnb_4bit_compute_dtype = model_args['bnb_4bit_compute_dtype']
-        # else:
-        #     bnb_4bit_compute_dtype = torch_dtype
-
-        bnb_4bit_compute_dtype = model_args['bnb_4bit_compute_dtype']
+        if model_args['bnb_4bit_compute_dtype']:
+            bnb_4bit_compute_dtype = model_args['bnb_4bit_compute_dtype']
+        else:
+            bnb_4bit_compute_dtype = torch_dtype
 
         quantization_config = BitsAndBytesConfig(
             load_in_4bit=True,
@@ -183,6 +211,8 @@ def get_quantization_config(model_args
         quantization_config = None
 
     return quantization_config
+
+
 
 def get_max_length(model):
     max_length = None

@@ -12,18 +12,25 @@ model:
     bnb_4bit_quant_storage: "uint8"
     torch_dtype: bfloat16
     attn_implementation: #flash_attention_2
-    device_map: null
+    device_map: auto
     low_cpu_mem_usage: null
-    # adapter_path: "/home/nampv1/models/asr/vnpost-1/"
-    adapter_path: null
+    adapter_path: "/home/nampv1/models/asr/vnpost-1/"
+    # adapter_path: null
 
 input:
-    audio_path: data/examples/example2.wav
+    # audio_path: data/examples/example2.wav
+    audio_path: https://drive.google.com/uc?export=download&id=1CcyHCXoS5m9ILgBsWY-RZY52JNaZjjge
 
 
 generate:
+    seed: 202508
     gen_args:
         max_new_tokens: 100
+        temperature:
+        max_length: 
+        do_sample:
+        top_p:
+        top_k:
 
 device: 
-    use_cpu: true
+    use_cpu: false

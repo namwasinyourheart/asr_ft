@@ -1,46 +1,28 @@
+import torch
 from omegaconf import OmegaConf
-
+from transformers import WhisperProcessor, WhisperForConditionalGeneration
+import soundfile as sf
 import argparse
 
+# from src.utils.model_utils import set_torch_dtype_and_attn_implementation, get_quantization_config
+# from src.utils.exp_utils import setup_environment
 
-from transformers import (
-    set_seed
-)
-from src.utils.exp_utils import setup_environment
-from src.utils.model_utils import load_whisper_model, load_processor
-
-import requests
-import soundfile as sf
-import io
-import librosa
-
-
+from src.utils.model_utils import load_model
 
 def load_config(config_path):
     return OmegaConf.load(config_path)
 
-
 def load_audio(audio_path, target_sr=16000):
-    # Nếu là URL thì tải về trước
-    if audio_path.startswith("http://") or audio_path.startswith("https://"):
-        response = requests.get(audio_path)
-        response.raise_for_status()
-        data = io.BytesIO(response.content)
-        audio_array, sr = sf.read(data)
-    else:
-        audio_array, sr = sf.read(audio_path)
-
+    audio_array, sr = sf.read(audio_path)
     # Resample nếu cần
     if sr != target_sr:
+        import librosa
         audio_array = librosa.resample(audio_array, orig_sr=sr, target_sr=target_sr)
         sr = target_sr
-
     # Nếu stereo, lấy kênh đầu tiên
     if len(audio_array.shape) > 1:
         audio_array = audio_array[:, 0]
-
     return audio_array, sr
-
 
 
 def load_model_for_transcribe(model_args, device_args):
@@ -54,14 +36,14 @@ def load_model_for_transcribe(model_args, device_args):
     Returns:
     - model (PreTrainedModel): The loaded model.
     """
-    model = load_whisper_model(model_args, device_args)
+    model = load_model(model_args, device_args)
 
     if model_args.adapter_path:
         from peft import PeftModel
         model = PeftModel.from_pretrained(model, model_args.adapter_path)
 
 
-        # model = model.merge_and_unload()
+        model = model.merge_and_unload()
 
     return model
 
@@ -74,25 +56,22 @@ def parse_args():
 def main():
     args = parse_args()
 
-    # Load the generation config file
     cfg = load_config(args.config_path)
 
-    # Setup environment
-    setup_environment()
+    # print(cfg)
 
+    # Load model & processor
+    model_name = cfg.model.pretrained_model_name_or_path
+    processor_name = cfg.model.pretrained_processor_name_or_path or model_name
 
-    # print(OmegaConf.to_yaml(cfg))
+    
 
-    model_args = cfg.model
-    gen_args = cfg.generate
-    device_args = cfg.device
+    # device = 'cpu' if cfg.device['use_cpu'] else 'cuda'
 
-    # Set seed
-    set_seed(gen_args.seed)
+    processor = WhisperProcessor.from_pretrained(processor_name)
+    model = load_model_for_transcribe(cfg.model, cfg.device)
 
-
-    model = load_model_for_transcribe(model_args, device_args)
-    processor = load_processor(model_args)
+    # model = model.to(device)
 
     model.config.forced_decoder_ids = None
     model.config.suppress_tokens = []
@@ -105,7 +84,7 @@ def main():
     # Prepare input features
     inputs = processor(audio_array, sampling_rate=sr, return_tensors="pt").to(model.device, dtype=model.dtype)
 
-    # print(inputs)
+    print(inputs)
 
     input_features = inputs["input_features"]
 
@@ -116,8 +95,5 @@ def main():
     transcription = processor.batch_decode(predicted_ids, skip_special_tokens=True)[0]
 
     print("Transcription:", transcription)
-    
-
 if __name__ == "__main__":
     main()
-    
