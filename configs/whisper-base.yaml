@@ -5,14 +5,14 @@ exp_manager:
   seed: 202502
   task_name: 'vi_asr'
   dataset_name: 
-  model_name: 'openai/whisper-base'
+  model_name: 'erax-ai/EraX-WoW-Turbo-V1.0'
   phase_name: 'eval'
   print_cfg: true
   exps_dir: 'exps'
 
 data:
   is_prepared: false 
-  raw_data_dir: 
+  raw_data_dir: "/mnt/data-vol/Speech/ViMD/raw/nguyendv02_ViMD_Dataset"
   streaming: true
   columns_to_retain: ["sample_id", "audio", "text", "filename"]
   # is_dataset_dict: true
@@ -26,12 +26,13 @@ data:
   # test_ratio: 0.2
   # columns_to_retain: ['index', 'answer', 'text',]
   # do_save: true
-  # do_show: false
-  # prepared_data_path: ./exps/llama-3.2-3b-instruct__gsm8k_vi/data/llama-3.2-3b-instruct__gsm8k_vi.pkl
+  do_show: true
+  prepared_data_path: #./exps/llama-3.2-3b-instruct__gsm8k_vi/data/llama-3.2-3b-instruct__gsm8k_vi.pkl
+
 model: 
-  pretrained_model_name_or_path: 'openai/whisper-base'
+  pretrained_model_name_or_path: "openai/whisper-base"
   pretrained_processor_name_or_path: 
-  load_in_4bit: true
+  load_in_4bit: false
   load_in_8bit: false
   bnb_4bit_compute_dtype: null
   bnb_4bit_quant_type: "nf4"
@@ -83,7 +84,7 @@ train:
       report_to: None
 
 generate:
-  max_new_tokens: 512
+  max_new_tokens: 256
   pad_token_id: null
   skip_special_tokens: True
   temperature:
@@ -91,11 +92,12 @@ generate:
 
 
 evaluate:
-  batch_size: 36
-  break_step: 1
+  batch_size: 128
+  break_step: -1
   do_extract_prediction: True
   prediction_file: 'test_predictions_0shot.txt'
   result_file: 'test_result_0shot.txt'
 
 device:
   use_cpu: False
+
