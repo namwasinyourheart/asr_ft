@@ -1,6 +1,3 @@
-# import sys
-# sys.path.append('/home/nampv1/projects/vnpost_asr')
-
 import os
 import shutil
 import joblib
@@ -10,7 +7,8 @@ from functools import partial
 import warnings
 
 import pandas as pd
-from datasets import load_dataset, Dataset, DatasetDict
+from datasets import load_dataset, Dataset, DatasetDict, Audio
+from torch.utils.data import DataLoader
 
 from hydra import initialize, compose
 from omegaconf import OmegaConf
@@ -20,16 +18,9 @@ from src.utils.model_utils import load_whisper_model, load_processor
 
 from src.utils.exp_utils import setup_environment, create_exp_dir
 
-from src.utils.hieralog import hprint, fprint, pprint, progress_write
-# from hieralog import hprint, fprint, pprint, progress_write
 
 warnings.filterwarnings("ignore")
 
-
-
-from transformers import AutoProcessor
-
-processor = AutoProcessor.from_pretrained("openai/whisper-small")
 
 
 def parse_args():
@@ -102,41 +93,84 @@ def save_cfg(cfg, config_path):
         None
     """
     OmegaConf.save(cfg, config_path)
-    pprint(f"Configuration saved to {config_path}")
+    print(f"Configuration saved to {config_path}")
+
+def compute_features_and_labels_wrapper(processor):
+    def compute_features_and_labels(batch):
+        # load and resample audio data from 48 to 16kHz
+        audio = batch["audio"]
+    
+        # compute log-Mel input features from input audio array 
+        batch["input_features"] = processor.feature_extractor(audio["array"], 
+                                                    sampling_rate=16000,).input_features[0]
+                                                    # sampling_rate=audio["sampling_rate"]).input_features[0]
+    
+        # encode target text to label ids 
+        batch["labels"] = processor.tokenizer(batch["text"]).input_ids
+    
+        batch["filename"] = batch["filename"]
+        batch["sample_id"] = batch["sample_id"]
+        return batch
+
+    return compute_features_and_labels
 
 
-def compute_features_and_labels(batch):
-    # load and resample audio data from 48 to 16kHz
-    audio = batch["audio"]
+# from functools import partial
 
-    # compute log-Mel input features from input audio array 
-    batch["input_features"] = feature_extractor(audio["array"], 
-                                                sampling_rate=audio["sampling_rate"]).input_features[0]
 
-    # encode target text to label ids 
-    batch["labels"] = tokenizer(batch["text"]).input_ids
+def add_sample_id(ex, idx):
+    ex["sample_id"] = idx
+    return ex
 
-    batch["filename"] = batch["filename"]
-    batch["sample_id"] = batch["sample_id"]
-    return batch
+# ds['test'] = ds['test'].map(add_sample_id, with_indices=True)
 
-from torch.utils.data import DataLoader
 def prepare_data(exp_args, data_args, model_args, device_args):
     
     processor = load_processor(model_args)
 
-    columns_to_retain = ["sample_id", "audio", "text", "filename"]
+    # from transformers import WhisperProcessor
+    # processor = WhisperProcessor.from_pretrained(model_args.pretrained_model_name_or_path, 
+    #                                              lang="vi", 
+    #                                              task="transcribe")
+    
+    columns_to_retain = ["sample_id", "audio", "text", "filename", "input_features", "labels"]
 
-    dataset = load_dataset(data_args.raw_data_dir, streaming=data_args.streaming)
+    dataset = load_dataset(data_args.raw_data_dir, 
+                           streaming=data_args.streaming)
+    # print(dataset)
 
+    dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
+    
+
+    dataset = dataset.map(add_sample_id, with_indices=True)
+
+
+
+    # Tạo mapping sample_id -> metadata
+    test_id2meta = {
+        ex["sample_id"]: {
+            "region": ex["region"],
+            "province": ex["province_name"],
+            "gender": ex["gender"],
+        }
+        for ex in dataset['test']
+    }
+
+    # print(id2meta)
+    
     columns_to_remove = [col for col in list(next(iter(dataset['test'])).keys()) if col not in columns_to_retain]
-    dataset = dataset.map(compute_features_and_labels, remove_columns=columns_to_remove)
+
+    compute_features_and_labels = compute_features_and_labels_wrapper(processor)
+    # _compute_features_and_labels = partial(compute_features_and_labels)
+    
+    dataset = dataset.map(compute_features_and_labels, 
+                          remove_columns=columns_to_remove)
 
     if data_args.do_show:
         # Show dataset examples
         show_ds_examples(dataset)
 
-    return dataset
+    return dataset, test_id2meta
 
 def show_ds_examples(ds_dict, num_examples=3, show_audio_array=False, audio_preview_len=10):
     """
@@ -174,9 +208,6 @@ def show_ds_examples(ds_dict, num_examples=3, show_audio_array=False, audio_prev
                 print(f"  {key}: {display_value}")
 
 
-
-    
-
 def main():
     setup_environment()
 
@@ -201,9 +232,11 @@ def main():
     config_path = os.path.join(exp_variant_dir, exp_name + '.yaml')
     save_cfg(cfg, config_path)
 
-
     # Set seed
     set_seed(exp_args.seed)
+
+    dataset = prepare_data(exp_args, data_args, model_args, device_args)
+    print(dataset)
 
 if __name__ == "__main__":
     main()

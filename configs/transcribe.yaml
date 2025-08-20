@@ -1,8 +1,8 @@
 model:
     # model_type: seq_2_seq_lm #causal_lm
     model_type: asr 
-    pretrained_model_name_or_path: "/home/nampv1/models/asr/vnpost-2/snapshots/e37978b90ca9030d5170a5c07aadb050351a65bb" 
-    # pretrained_model_name_or_path: openai/whisper-small
+    # pretrained_model_name_or_path: "/home/nampv1/models/asr/vnpost-2/snapshots/e37978b90ca9030d5170a5c07aadb050351a65bb" 
+    pretrained_model_name_or_path: openai/whisper-small
     pretrained_processor_name_or_path: 
     load_in_4bit: true
     load_in_8bit: false

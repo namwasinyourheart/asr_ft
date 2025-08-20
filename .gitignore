@@ -1,6 +1,18 @@
-/solve-it-easy
-/models
+solve-it-easy/
+models/
 .env
-/data
-/voiceai.stt
-/toy_docker
+data/
+voiceai.stt/
+toy_docker/
+
+
+# Ignore all Python compiled files
+*/*.pyc
+*/__pycache__/
+
+
+exps/
+
+.gitignore
+
+draft/
