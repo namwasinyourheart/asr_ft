@@ -56,6 +56,10 @@ def load_model_for_transcribe(model_args, device_args):
     """
     model = load_whisper_model(model_args, device_args)
 
+    model.config.forced_decoder_ids = None
+    model.config.suppress_tokens = []
+
+
     if model_args.adapter_path:
         from peft import PeftModel
         model = PeftModel.from_pretrained(model, model_args.adapter_path)
