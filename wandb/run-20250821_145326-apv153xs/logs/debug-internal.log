@@ -1,0 +1,16 @@
+{"time":"2025-08-21T14:53:26.79218864+07:00","level":"INFO","msg":"using version","core version":"0.19.1"}
+{"time":"2025-08-21T14:53:26.79220261+07:00","level":"INFO","msg":"created symlink","path":"/home/nampv1/projects/vnpost_asr/wandb/run-20250821_145326-apv153xs/logs/debug-core.log"}
+{"time":"2025-08-21T14:53:26.89950709+07:00","level":"INFO","msg":"created new stream","id":"apv153xs"}
+{"time":"2025-08-21T14:53:26.89953404+07:00","level":"INFO","msg":"stream: started","id":"apv153xs"}
+{"time":"2025-08-21T14:53:26.89956817+07:00","level":"INFO","msg":"sender: started","stream_id":"apv153xs"}
+{"time":"2025-08-21T14:53:26.899553+07:00","level":"INFO","msg":"handler: started","stream_id":"apv153xs"}
+{"time":"2025-08-21T14:53:26.89962088+07:00","level":"INFO","msg":"writer: Do: started","stream_id":"apv153xs"}
+{"time":"2025-08-21T14:53:27.335505221+07:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-08-21T14:53:27.457311697+07:00","level":"INFO","msg":"stream: closing","id":"apv153xs"}
+{"time":"2025-08-21T14:53:27.457362077+07:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-08-21T14:53:27.45780321+07:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-08-21T14:53:29.055109455+07:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-08-21T14:53:30.406559918+07:00","level":"INFO","msg":"handler: closed","stream_id":"apv153xs"}
+{"time":"2025-08-21T14:53:30.406584528+07:00","level":"INFO","msg":"writer: Close: closed","stream_id":"apv153xs"}
+{"time":"2025-08-21T14:53:30.406591328+07:00","level":"INFO","msg":"sender: closed","stream_id":"apv153xs"}
+{"time":"2025-08-21T14:53:30.406624908+07:00","level":"INFO","msg":"stream: closed","id":"apv153xs"}

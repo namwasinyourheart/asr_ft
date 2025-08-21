@@ -1,0 +1,16 @@
+Process Rank: 0, Device: cuda:0, N_GPU: 1, Distributed Training: True
+Traceback (most recent call last):
+  File "/home/nampv1/projects/vnpost_asr/finetune.py", line 384, in <module>
+    main()
+  File "/home/nampv1/projects/vnpost_asr/finetune.py", line 374, in main
+    finetune(
+  File "/home/nampv1/projects/vnpost_asr/finetune.py", line 228, in finetune
+    trainer = Seq2SeqTrainer(
+              ^^^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/transformers/utils/deprecation.py", line 172, in wrapped_func
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/transformers/trainer_seq2seq.py", line 89, in __init__
+    if self.args.generation_config is not None:
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'TrainingArguments' object has no attribute 'generation_config'

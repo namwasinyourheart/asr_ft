@@ -1,0 +1,16 @@
+{"time":"2025-08-21T15:14:11.342961108+07:00","level":"INFO","msg":"using version","core version":"0.19.1"}
+{"time":"2025-08-21T15:14:11.342975878+07:00","level":"INFO","msg":"created symlink","path":"/home/nampv1/projects/vnpost_asr/wandb/run-20250821_151411-jmjng68g/logs/debug-core.log"}
+{"time":"2025-08-21T15:14:11.446608148+07:00","level":"INFO","msg":"created new stream","id":"jmjng68g"}
+{"time":"2025-08-21T15:14:11.446644878+07:00","level":"INFO","msg":"stream: started","id":"jmjng68g"}
+{"time":"2025-08-21T15:14:11.446665728+07:00","level":"INFO","msg":"handler: started","stream_id":"jmjng68g"}
+{"time":"2025-08-21T15:14:11.446669008+07:00","level":"INFO","msg":"writer: Do: started","stream_id":"jmjng68g"}
+{"time":"2025-08-21T15:14:11.446734848+07:00","level":"INFO","msg":"sender: started","stream_id":"jmjng68g"}
+{"time":"2025-08-21T15:14:11.803756931+07:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-08-21T15:14:12.150936083+07:00","level":"INFO","msg":"stream: closing","id":"jmjng68g"}
+{"time":"2025-08-21T15:14:12.150960793+07:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-08-21T15:14:12.151302115+07:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-08-21T15:14:14.025095315+07:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-08-21T15:14:14.361460265+07:00","level":"INFO","msg":"handler: closed","stream_id":"jmjng68g"}
+{"time":"2025-08-21T15:14:14.361493965+07:00","level":"INFO","msg":"writer: Close: closed","stream_id":"jmjng68g"}
+{"time":"2025-08-21T15:14:14.361521945+07:00","level":"INFO","msg":"sender: closed","stream_id":"jmjng68g"}
+{"time":"2025-08-21T15:14:14.361567995+07:00","level":"INFO","msg":"stream: closed","id":"jmjng68g"}

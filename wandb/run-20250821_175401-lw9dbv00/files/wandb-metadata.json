@@ -1,0 +1,44 @@
+{
+  "os":  "Linux-6.14.0-27-generic-x86_64-with-glibc2.39",
+  "python":  "CPython 3.11.0",
+  "startedAt":  "2025-08-21T10:54:01.097944Z",
+  "args":  [
+    "--config_path=configs/whisper-base.yaml"
+  ],
+  "program":  "/home/nampv1/projects/vnpost_asr/finetune.py",
+  "codePath":  "finetune.py",
+  "git":  {
+    "commit":  "5797c55090db7939242d5ae4d9b627d65d9de8fc"
+  },
+  "email":  "apersonnamednam@gmail.com",
+  "root":  "/home/nampv1/projects/vnpost_asr",
+  "host":  "nampv1-B450M-HDV-R4-0",
+  "executable":  "/home/nampv1/anaconda3/envs/asr/bin/python",
+  "codePathLocal":  "finetune.py",
+  "cpu_count":  6,
+  "cpu_count_logical":  12,
+  "gpu":  "NVIDIA GeForce RTX 3050",
+  "gpu_count":  1,
+  "disk":  {
+    "/":  {
+      "total":  "457041731584",
+      "used":  "339367878656"
+    }
+  },
+  "memory":  {
+    "total":  "32990679040"
+  },
+  "cpu":  {
+    "count":  6,
+    "countLogical":  12
+  },
+  "gpu_nvidia":  [
+    {
+      "name":  "NVIDIA GeForce RTX 3050",
+      "memoryTotal":  "6442450944",
+      "cudaCores":  2304,
+      "architecture":  "Ampere"
+    }
+  ],
+  "cudaVersion":  "12.9"
+}

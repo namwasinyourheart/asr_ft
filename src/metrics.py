@@ -129,6 +129,7 @@ def compute_metrics_wrapper(tokenizer, eval_metrics, model_type):
         labels = tokenizer.batch_decode(label_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True)
         
         pred_ids = predictions.predictions
+        
         pred_ids = np.where(pred_ids != -100, pred_ids, tokenizer.pad_token_id)
         pred_ids = pred_ids.argmax(axis=-1)
         predictions = tokenizer.batch_decode(pred_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True)
@@ -157,9 +158,84 @@ def compute_metrics_wrapper(tokenizer, eval_metrics, model_type):
             results.update(accuracy_score)  
     
         return results
+
+
+    def compute_metrics_asr(predictions):
+        results = {}
+        if not eval_metrics:
+            return results
+
+        if not len(eval_metrics):
+            return results
+            
+        label_ids = predictions.label_ids
+        label_ids = np.where(label_ids != -100, label_ids, tokenizer.pad_token_id)
+        labels = tokenizer.batch_decode(label_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True)
+        
+        pred_ids = predictions.predictions
+        
+        pred_ids = np.where(pred_ids != -100, pred_ids, tokenizer.pad_token_id)
+        pred_ids = pred_ids.argmax(axis=-1)
+        predictions = tokenizer.batch_decode(pred_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True)
+
+        if "wer" in eval_metrics:
+            metric = evaluate.load("wer")
+            wer = 100 * metric.compute(predictions=predictions, references=labels)
+            results.update({"wer": wer})
+
+        return results
+
+
+    def compute_metrics_asr1(pred):
+        results = {}
+        pred_ids = pred.predictions
+
+        label_ids = pred.label_ids
+
+        # replace -100 with the pad_token_id
+        label_ids[label_ids == -100] = tokenizer.pad_token_id
+        pred_ids = np.argmax(pred_ids, axis=-1)
+
+        # we do not want to group tokens when computing the metrics
+        pred_str = tokenizer.batch_decode(pred_ids, skip_special_tokens=True)
+        label_str = tokenizer.batch_decode(label_ids, skip_special_tokens=True)
+
+        metric = evaluate.load("wer")
+        if 'wer' in eval_metrics:
+            wer = 100 * metric.compute(predictions=pred_str, references=label_str)
+            results.update({"wer": wer})
+
+        return results
+
+
+    def compute_metrics_asr2(pred):
+        results = {}
+
+        # Handle ragged predictions safely
+        if isinstance(pred.predictions, (list, tuple)):
+            pred_ids = [np.argmax(p, axis=-1) for p in pred.predictions]
+        else:
+            pred_ids = np.argmax(pred.predictions, axis=-1)
+
+        label_ids = pred.label_ids
+        label_ids[label_ids == -100] = tokenizer.pad_token_id
+
+        pred_str = tokenizer.batch_decode(pred_ids, skip_special_tokens=True)
+        label_str = tokenizer.batch_decode(label_ids, skip_special_tokens=True)
+
+        metric = evaluate.load("wer")
+        if "wer" in eval_metrics:
+            wer = 100 * metric.compute(predictions=pred_str, references=label_str)
+            results.update({"wer": wer})
+
+        return results
+
     
     if model_type == "SEQ_2_SEQ_LM":
         return compute_metrics_seq2seq
 
     if model_type == "CAUSAL_LM":
         return compute_metrics_causal
+
+    if model_type == "ASR":
+        return compute_metrics_asr2

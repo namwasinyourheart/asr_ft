@@ -1,0 +1,16 @@
+{"time":"2025-08-21T15:19:38.669040928+07:00","level":"INFO","msg":"using version","core version":"0.19.1"}
+{"time":"2025-08-21T15:19:38.669057039+07:00","level":"INFO","msg":"created symlink","path":"/home/nampv1/projects/vnpost_asr/wandb/run-20250821_151938-5wuovv4r/logs/debug-core.log"}
+{"time":"2025-08-21T15:19:38.772518708+07:00","level":"INFO","msg":"created new stream","id":"5wuovv4r"}
+{"time":"2025-08-21T15:19:38.772569118+07:00","level":"INFO","msg":"stream: started","id":"5wuovv4r"}
+{"time":"2025-08-21T15:19:38.772577868+07:00","level":"INFO","msg":"sender: started","stream_id":"5wuovv4r"}
+{"time":"2025-08-21T15:19:38.772577138+07:00","level":"INFO","msg":"writer: Do: started","stream_id":"5wuovv4r"}
+{"time":"2025-08-21T15:19:38.772623478+07:00","level":"INFO","msg":"handler: started","stream_id":"5wuovv4r"}
+{"time":"2025-08-21T15:19:39.194377772+07:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-08-21T15:19:39.742218806+07:00","level":"INFO","msg":"stream: closing","id":"5wuovv4r"}
+{"time":"2025-08-21T15:19:39.742245866+07:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-08-21T15:19:39.742573908+07:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-08-21T15:19:40.961967255+07:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-08-21T15:19:41.388238341+07:00","level":"INFO","msg":"handler: closed","stream_id":"5wuovv4r"}
+{"time":"2025-08-21T15:19:41.388268891+07:00","level":"INFO","msg":"writer: Close: closed","stream_id":"5wuovv4r"}
+{"time":"2025-08-21T15:19:41.388303722+07:00","level":"INFO","msg":"sender: closed","stream_id":"5wuovv4r"}
+{"time":"2025-08-21T15:19:41.388317842+07:00","level":"INFO","msg":"stream: closed","id":"5wuovv4r"}

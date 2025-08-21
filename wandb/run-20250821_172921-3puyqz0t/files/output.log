@@ -1,0 +1,13 @@
+Process Rank: 0, Device: cuda:0, N_GPU: 1, Distributed Training: True
+Traceback (most recent call last):
+  File "/home/nampv1/projects/vnpost_asr/finetune.py", line 394, in <module>
+    main()
+  File "/home/nampv1/projects/vnpost_asr/finetune.py", line 384, in main
+    finetune(
+  File "/home/nampv1/projects/vnpost_asr/finetune.py", line 231, in finetune
+    trainer = Seq2SeqTrainer(
+              ^^^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/transformers/utils/deprecation.py", line 172, in wrapped_func
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+TypeError: Seq2SeqTrainer.__init__() got an unexpected keyword argument 'remove_unused_columns'
