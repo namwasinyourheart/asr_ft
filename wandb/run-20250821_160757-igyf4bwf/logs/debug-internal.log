@@ -1,0 +1,16 @@
+{"time":"2025-08-21T16:07:57.741002512+07:00","level":"INFO","msg":"using version","core version":"0.19.1"}
+{"time":"2025-08-21T16:07:57.741025942+07:00","level":"INFO","msg":"created symlink","path":"/home/nampv1/projects/vnpost_asr/wandb/run-20250821_160757-igyf4bwf/logs/debug-core.log"}
+{"time":"2025-08-21T16:07:57.844626043+07:00","level":"INFO","msg":"created new stream","id":"igyf4bwf"}
+{"time":"2025-08-21T16:07:57.844653674+07:00","level":"INFO","msg":"stream: started","id":"igyf4bwf"}
+{"time":"2025-08-21T16:07:57.844671564+07:00","level":"INFO","msg":"handler: started","stream_id":"igyf4bwf"}
+{"time":"2025-08-21T16:07:57.844692895+07:00","level":"INFO","msg":"sender: started","stream_id":"igyf4bwf"}
+{"time":"2025-08-21T16:07:57.844675344+07:00","level":"INFO","msg":"writer: Do: started","stream_id":"igyf4bwf"}
+{"time":"2025-08-21T16:07:58.308865711+07:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-08-21T16:08:00.5452739+07:00","level":"INFO","msg":"stream: closing","id":"igyf4bwf"}
+{"time":"2025-08-21T16:08:00.545298321+07:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-08-21T16:08:00.545850458+07:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-08-21T16:08:01.526344158+07:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-08-21T16:08:01.864697819+07:00","level":"INFO","msg":"handler: closed","stream_id":"igyf4bwf"}
+{"time":"2025-08-21T16:08:01.86472441+07:00","level":"INFO","msg":"sender: closed","stream_id":"igyf4bwf"}
+{"time":"2025-08-21T16:08:01.86471808+07:00","level":"INFO","msg":"writer: Close: closed","stream_id":"igyf4bwf"}
+{"time":"2025-08-21T16:08:01.864781042+07:00","level":"INFO","msg":"stream: closed","id":"igyf4bwf"}

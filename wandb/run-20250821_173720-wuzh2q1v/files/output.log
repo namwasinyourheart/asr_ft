@@ -1,0 +1,70 @@
+Process Rank: 0, Device: cuda:0, N_GPU: 1, Distributed Training: True
+Evaluating...
+You're using a WhisperTokenizerFast tokenizer. Please note that with a fast tokenizer, using the `__call__` method is faster than using a method to encode the text followed by a call to the `pad` method to get a padded encoding.
+Traceback (most recent call last):
+  File "/home/nampv1/projects/vnpost_asr/finetune.py", line 405, in <module>
+    main()
+  File "/home/nampv1/projects/vnpost_asr/finetune.py", line 395, in main
+    finetune(
+  File "/home/nampv1/projects/vnpost_asr/finetune.py", line 287, in finetune
+    metrics = trainer.evaluate(eval_dataset=val_ds, metric_key_prefix="eval")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/transformers/trainer_seq2seq.py", line 191, in evaluate
+    return super().evaluate(eval_dataset, ignore_keys=ignore_keys, metric_key_prefix=metric_key_prefix)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/transformers/trainer.py", line 4331, in evaluate
+    output = eval_loop(
+             ^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/transformers/trainer.py", line 4527, in evaluation_loop
+    losses, logits, labels = self.prediction_step(model, inputs, prediction_loss_only, ignore_keys=ignore_keys)
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/transformers/trainer_seq2seq.py", line 289, in prediction_step
+    return super().prediction_step(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/transformers/trainer.py", line 4743, in prediction_step
+    loss, outputs = self.compute_loss(model, inputs, return_outputs=True)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/transformers/trainer.py", line 3961, in compute_loss
+    outputs = model(**inputs)
+              ^^^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/transformers/models/whisper/modeling_whisper.py", line 1302, in forward
+    outputs = self.model(
+              ^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/transformers/models/whisper/modeling_whisper.py", line 1127, in forward
+    encoder_outputs = self.encoder(
+                      ^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/transformers/models/whisper/modeling_whisper.py", line 680, in forward
+    inputs_embeds = nn.functional.gelu(self.conv1(input_features))
+                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/torch/nn/modules/conv.py", line 371, in forward
+    return self._conv_forward(input, self.weight, self.bias)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/torch/nn/modules/conv.py", line 366, in _conv_forward
+    return F.conv1d(
+           ^^^^^^^^^
+RuntimeError: Input type (float) and bias type (c10::Half) should be the same
+[0m

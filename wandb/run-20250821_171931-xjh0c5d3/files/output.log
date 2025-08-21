@@ -1,0 +1,40 @@
+Process Rank: 0, Device: cuda:0, N_GPU: 1, Distributed Training: True
+Evaluating...
+You're using a WhisperTokenizerFast tokenizer. Please note that with a fast tokenizer, using the `__call__` method is faster than using a method to encode the text followed by a call to the `pad` method to get a padded encoding.
+type(features):  <class 'list'>
+features[0].keys():  dict_keys(['input_features', 'labels'])
+Traceback (most recent call last):
+  File "/home/nampv1/projects/vnpost_asr/finetune.py", line 393, in <module>
+    main()
+  File "/home/nampv1/projects/vnpost_asr/finetune.py", line 383, in main
+    finetune(
+  File "/home/nampv1/projects/vnpost_asr/finetune.py", line 275, in finetune
+    metrics = trainer.evaluate(eval_dataset=val_ds, metric_key_prefix="eval")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/transformers/trainer_seq2seq.py", line 191, in evaluate
+    return super().evaluate(eval_dataset, ignore_keys=ignore_keys, metric_key_prefix=metric_key_prefix)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/transformers/trainer.py", line 4331, in evaluate
+    output = eval_loop(
+             ^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/transformers/trainer.py", line 4517, in evaluation_loop
+    for step, inputs in enumerate(dataloader):
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/accelerate/data_loader.py", line 567, in __iter__
+    current_batch = next(dataloader_iter)
+                    ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/torch/utils/data/dataloader.py", line 734, in __next__
+    data = self._next_data()
+           ^^^^^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/torch/utils/data/dataloader.py", line 790, in _next_data
+    data = self._dataset_fetcher.fetch(index)  # may raise StopIteration
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/torch/utils/data/_utils/fetch.py", line 55, in fetch
+    return self.collate_fn(data)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nampv1/projects/vnpost_asr/finetune.py", line 62, in __call__
+    batch["filename"] = [f["filename"] for f in features]
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nampv1/projects/vnpost_asr/finetune.py", line 62, in <listcomp>
+    batch["filename"] = [f["filename"] for f in features]
+                         ~^^^^^^^^^^^^
+KeyError: 'filename'

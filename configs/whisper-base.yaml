@@ -9,12 +9,21 @@ exp_manager:
   phase_name: 'eval'
   print_cfg: true
   exps_dir: 'exps'
+  print_model: true
+  print_processor: false
+  print_trainable_parameters: true
+  print_parameter_datatypes: true
+  print_device: true
+  wandb:
+    project: vnpost_asr_ft
 
 data:
-  is_prepared: false 
-  raw_data_dir: "/mnt/data-vol/Speech/ViMD/raw/nguyendv02_ViMD_Dataset"
-  streaming: true
+  is_prepared: true 
+  # raw_data_dir: "/mnt/data-vol/Speech/ViMD/raw/nguyendv02_ViMD_Dataset"
+  raw_data_dir: "data/ViMD/raw"
+  streaming: false
   columns_to_retain: ["sample_id", "audio", "text", "filename"]
+  id2meta_filename: "test_id2meta.json"
   # is_dataset_dict: true
   # id_col: 'index'
   # input_col: "problem"
@@ -25,11 +34,12 @@ data:
   # val_ratio: 0.25
   # test_ratio: 0.2
   # columns_to_retain: ['index', 'answer', 'text',]
-  # do_save: true
-  do_show: true
-  prepared_data_path: #./exps/llama-3.2-3b-instruct__gsm8k_vi/data/llama-3.2-3b-instruct__gsm8k_vi.pkl
+  do_save: true
+  do_show: false
+  prepared_data_dirname: prepared_data
 
 model: 
+  model_type: "ASR"
   pretrained_model_name_or_path: "openai/whisper-base"
   pretrained_processor_name_or_path: 
   load_in_4bit: false
@@ -60,16 +70,22 @@ train:
     train_n_samples: 100
     val_n_samples: 10
     test_n_samples: 10
-    
+
+    do_resume_from_checkpoint: false
+
+    train_metric_filename: 'train_metrics.json'
+    eval_metrics: ['wer']
+
     train_args:
-      _target_: transformers.TrainingArguments
+      # _target_: transformers.TrainingArguments
+      _target_: transformers.Seq2SeqTrainingArguments
       resume_from_checkpoint: 
       do_train: false
       do_eval: true
       do_predict: false
       learning_rate: 0.0001
-      num_train_epochs: 1
-      # max_steps: 1
+      # num_train_epochs: 1
+      max_steps: 1
       per_device_train_batch_size: 2
       per_device_eval_batch_size: 2
       # logging_strategy: "no"
@@ -82,6 +98,7 @@ train:
       eval_on_start: true
       use_cpu: false
       report_to: None
+      remove_unused_columns: false
 
 generate:
   max_new_tokens: 256
@@ -92,11 +109,11 @@ generate:
 
 
 evaluate:
-  batch_size: 128
+  batch_size: 64
   break_step: -1
   do_extract_prediction: True
-  prediction_file: 'test_predictions_0shot.txt'
-  result_file: 'test_result_0shot.txt'
+  prediction_file: 'test_predictions.txt'
+  result_file: 'test_result.txt'
 
 device:
   use_cpu: False

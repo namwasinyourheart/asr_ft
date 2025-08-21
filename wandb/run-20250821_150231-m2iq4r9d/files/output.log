@@ -1,0 +1,10 @@
+Process Rank: 0, Device: cuda:0, N_GPU: 1, Distributed Training: True
+Traceback (most recent call last):
+  File "/home/nampv1/projects/vnpost_asr/finetune.py", line 384, in <module>
+    main()
+  File "/home/nampv1/projects/vnpost_asr/finetune.py", line 374, in main
+    finetune(
+  File "/home/nampv1/projects/vnpost_asr/finetune.py", line 224, in finetune
+    compute_metrics=compute_metrics_wrapper(tokenizer, train_args.eval_metrics, model_args.model_type)
+                                            ^^^^^^^^^
+NameError: name 'tokenizer' is not defined

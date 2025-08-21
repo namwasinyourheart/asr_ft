@@ -1,0 +1,42 @@
+Process Rank: 0, Device: cuda:0, N_GPU: 1, Distributed Training: True
+Evaluating...
+You're using a WhisperTokenizerFast tokenizer. Please note that with a fast tokenizer, using the `__call__` method is faster than using a method to encode the text followed by a call to the `pad` method to get a padded encoding.
+ 80%|████████████████████████████████▊        | 4/5 [00:00<00:00,  6.46it/s]Traceback (most recent call last):
+  File "/home/nampv1/projects/vnpost_asr/finetune.py", line 407, in <module>
+    main()
+  File "/home/nampv1/projects/vnpost_asr/finetune.py", line 397, in main
+    finetune(
+  File "/home/nampv1/projects/vnpost_asr/finetune.py", line 289, in finetune
+    metrics = trainer.evaluate(eval_dataset=val_ds, metric_key_prefix="eval")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/transformers/trainer_seq2seq.py", line 191, in evaluate
+    return super().evaluate(eval_dataset, ignore_keys=ignore_keys, metric_key_prefix=metric_key_prefix)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/transformers/trainer.py", line 4331, in evaluate
+    output = eval_loop(
+             ^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/transformers/trainer.py", line 4622, in evaluation_loop
+    metrics = self.compute_metrics(
+              ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nampv1/projects/vnpost_asr/src/metrics.py", line 171, in compute_metrics
+    pred_str = tokenizer.batch_decode(pred_ids, skip_special_tokens=True)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/transformers/tokenization_utils_base.py", line 3856, in batch_decode
+    return [
+           ^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/transformers/tokenization_utils_base.py", line 3857, in <listcomp>
+    self.decode(
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/transformers/models/whisper/tokenization_whisper_fast.py", line 367, in decode
+    text = super().decode(
+           ^^^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/transformers/tokenization_utils_base.py", line 3896, in decode
+    return self._decode(
+           ^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/transformers/models/whisper/tokenization_whisper_fast.py", line 393, in _decode
+    text = super()._decode(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/transformers/tokenization_utils_fast.py", line 682, in _decode
+    text = self._tokenizer.decode(token_ids, skip_special_tokens=skip_special_tokens)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: argument 'ids': 'list' object cannot be interpreted as an integer
+[0m

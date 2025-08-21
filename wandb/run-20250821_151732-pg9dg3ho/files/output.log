@@ -1,0 +1,23 @@
+Process Rank: 0, Device: cuda:0, N_GPU: 1, Distributed Training: True
+Evaluating...
+Traceback (most recent call last):
+  File "/home/nampv1/projects/vnpost_asr/finetune.py", line 384, in <module>
+    main()
+  File "/home/nampv1/projects/vnpost_asr/finetune.py", line 374, in main
+    finetune(
+  File "/home/nampv1/projects/vnpost_asr/finetune.py", line 272, in finetune
+    metrics = trainer.evaluate(eval_dataset=val_ds, metric_key_prefix="eval")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/transformers/trainer_seq2seq.py", line 191, in evaluate
+    return super().evaluate(eval_dataset, ignore_keys=ignore_keys, metric_key_prefix=metric_key_prefix)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/transformers/trainer.py", line 4331, in evaluate
+    output = eval_loop(
+             ^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/transformers/trainer.py", line 4452, in evaluation_loop
+    model = self._wrap_model(self.model, training=False, dataloader=dataloader)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nampv1/anaconda3/envs/asr/lib/python3.11/site-packages/transformers/trainer.py", line 2059, in _wrap_model
+    if self.accelerator.unwrap_model(model, keep_torch_compile=False) is not model:
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: Accelerator.unwrap_model() got an unexpected keyword argument 'keep_torch_compile'

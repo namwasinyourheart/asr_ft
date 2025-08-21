@@ -1,0 +1,16 @@
+{"time":"2025-08-21T16:25:52.768970606+07:00","level":"INFO","msg":"using version","core version":"0.19.1"}
+{"time":"2025-08-21T16:25:52.768985126+07:00","level":"INFO","msg":"created symlink","path":"/home/nampv1/projects/vnpost_asr/wandb/run-20250821_162552-dci2tqn8/logs/debug-core.log"}
+{"time":"2025-08-21T16:25:52.874112227+07:00","level":"INFO","msg":"created new stream","id":"dci2tqn8"}
+{"time":"2025-08-21T16:25:52.874140927+07:00","level":"INFO","msg":"stream: started","id":"dci2tqn8"}
+{"time":"2025-08-21T16:25:52.874204167+07:00","level":"INFO","msg":"handler: started","stream_id":"dci2tqn8"}
+{"time":"2025-08-21T16:25:52.87456194+07:00","level":"INFO","msg":"sender: started","stream_id":"dci2tqn8"}
+{"time":"2025-08-21T16:25:52.87457544+07:00","level":"INFO","msg":"writer: Do: started","stream_id":"dci2tqn8"}
+{"time":"2025-08-21T16:25:53.568701754+07:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-08-21T16:25:55.245577151+07:00","level":"INFO","msg":"stream: closing","id":"dci2tqn8"}
+{"time":"2025-08-21T16:25:55.245636451+07:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-08-21T16:25:55.246205865+07:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-08-21T16:25:56.834350039+07:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-08-21T16:25:57.150745778+07:00","level":"INFO","msg":"handler: closed","stream_id":"dci2tqn8"}
+{"time":"2025-08-21T16:25:57.150772428+07:00","level":"INFO","msg":"writer: Close: closed","stream_id":"dci2tqn8"}
+{"time":"2025-08-21T16:25:57.150809988+07:00","level":"INFO","msg":"sender: closed","stream_id":"dci2tqn8"}
+{"time":"2025-08-21T16:25:57.150821698+07:00","level":"INFO","msg":"stream: closed","id":"dci2tqn8"}

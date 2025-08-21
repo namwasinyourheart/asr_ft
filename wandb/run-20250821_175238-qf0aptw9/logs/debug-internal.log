@@ -1,0 +1,16 @@
+{"time":"2025-08-21T17:52:38.483921825+07:00","level":"INFO","msg":"using version","core version":"0.19.1"}
+{"time":"2025-08-21T17:52:38.483936905+07:00","level":"INFO","msg":"created symlink","path":"/home/nampv1/projects/vnpost_asr/wandb/run-20250821_175238-qf0aptw9/logs/debug-core.log"}
+{"time":"2025-08-21T17:52:38.587872188+07:00","level":"INFO","msg":"created new stream","id":"qf0aptw9"}
+{"time":"2025-08-21T17:52:38.587911908+07:00","level":"INFO","msg":"stream: started","id":"qf0aptw9"}
+{"time":"2025-08-21T17:52:38.587934458+07:00","level":"INFO","msg":"writer: Do: started","stream_id":"qf0aptw9"}
+{"time":"2025-08-21T17:52:38.587938808+07:00","level":"INFO","msg":"sender: started","stream_id":"qf0aptw9"}
+{"time":"2025-08-21T17:52:38.587948598+07:00","level":"INFO","msg":"handler: started","stream_id":"qf0aptw9"}
+{"time":"2025-08-21T17:52:39.116450487+07:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-08-21T17:52:47.564546356+07:00","level":"INFO","msg":"stream: closing","id":"qf0aptw9"}
+{"time":"2025-08-21T17:52:47.564569226+07:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-08-21T17:52:47.565060426+07:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-08-21T17:52:48.506564816+07:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-08-21T17:52:48.847136054+07:00","level":"INFO","msg":"handler: closed","stream_id":"qf0aptw9"}
+{"time":"2025-08-21T17:52:48.847165054+07:00","level":"INFO","msg":"writer: Close: closed","stream_id":"qf0aptw9"}
+{"time":"2025-08-21T17:52:48.847195214+07:00","level":"INFO","msg":"sender: closed","stream_id":"qf0aptw9"}
+{"time":"2025-08-21T17:52:48.847226914+07:00","level":"INFO","msg":"stream: closed","id":"qf0aptw9"}

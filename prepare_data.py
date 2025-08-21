@@ -7,7 +7,7 @@ from functools import partial
 import warnings
 
 import pandas as pd
-from datasets import load_dataset, Dataset, DatasetDict, Audio
+from datasets import load_dataset, load_from_disk, Dataset, DatasetDict, Audio
 from torch.utils.data import DataLoader
 
 from hydra import initialize, compose
@@ -20,6 +20,20 @@ from src.utils.exp_utils import setup_environment, create_exp_dir
 
 
 warnings.filterwarnings("ignore")
+
+
+import json
+
+def save_dict_to_json(d: dict, filepath: str):
+    """Save dictionary to JSON file"""
+    with open(filepath, "w", encoding="utf-8") as f:
+        json.dump(d, f, ensure_ascii=False, indent=2)
+
+def load_dict_from_json(filepath: str) -> dict:
+    """Load dictionary from JSON file"""
+    with open(filepath, "r", encoding="utf-8") as f:
+        return json.load(f)
+
 
 
 
@@ -135,30 +149,66 @@ def prepare_data(exp_args, data_args, model_args, device_args):
     
     columns_to_retain = ["sample_id", "audio", "text", "filename", "input_features", "labels"]
 
-    dataset = load_dataset(data_args.raw_data_dir, 
-                           streaming=data_args.streaming)
+    # dataset = load_dataset(data_args.raw_data_dir, 
+    #                        streaming=data_args.streaming)
+
+    dataset = load_from_disk(data_args.raw_data_dir)
     # print(dataset)
 
     dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
     
 
-    dataset = dataset.map(add_sample_id, with_indices=True)
+    # dataset = dataset.map(add_sample_id, with_indices=True)
+
+    # dataset = dataset.map(
+    #     add_sample_id,
+    #     with_indices=True,
+    #     batched=True,        # map theo batch thay vì từng sample
+    #     batch_size=100,     # tuỳ chỉnh, giảm nếu vẫn lỗi
+    #     # keep_in_memory=False  # ghi tạm ra đĩa thay vì RAM
+    # )
 
 
+    def add_sample_id_streaming(example, idx):
+        example["sample_id"] = idx
+        return example
 
-    # Tạo mapping sample_id -> metadata
-    test_id2meta = {
-        ex["sample_id"]: {
-            "region": ex["region"],
-            "province": ex["province_name"],
-            "gender": ex["gender"],
-        }
-        for ex in dataset['test']
-    }
+    from tqdm.auto import tqdm
 
-    # print(id2meta)
-    
+
     columns_to_remove = [col for col in list(next(iter(dataset['test'])).keys()) if col not in columns_to_retain]
+
+    print("Add sample_id")
+    # Sử dụng khi streaming=True
+    if data_args.streaming:
+        # Thêm sample_id bằng cách sử dụng map với with_indices
+        dataset = dataset.map(
+            add_sample_id_streaming,
+            with_indices=True,
+            batched=False  # Xử lý từng mẫu một
+        )
+    else:
+        # Cách xử lý thông thường khi không streaming
+        for split in tqdm(dataset):
+            sample_ids = list(range(len(dataset[split])))
+            dataset[split] = dataset[split].add_column("sample_id", sample_ids)
+
+
+    print("Get id2meta")
+    test_id2meta = {}
+    for split in tqdm(dataset):  # hoặc ['test'] nếu chỉ cần test
+        for ex in tqdm(dataset[split]):
+            test_id2meta[ex["sample_id"]] = {
+                "region": ex.get("region", ""),
+                "province": ex.get("province_name", ""),
+                "gender": ex.get("gender", ""),
+            }
+
+    
+    test_id2meta_path = os.path.join(exp_args.exps_dir, exp_args.exp_name, exp_args.exp_variant, "data", data_args.id2meta_filename)
+    
+    print(f"Saving test_id2meta to {test_id2meta_path}")
+    save_dict_to_json(test_id2meta, test_id2meta_path)
 
     compute_features_and_labels = compute_features_and_labels_wrapper(processor)
     # _compute_features_and_labels = partial(compute_features_and_labels)
@@ -169,6 +219,11 @@ def prepare_data(exp_args, data_args, model_args, device_args):
     if data_args.do_show:
         # Show dataset examples
         show_ds_examples(dataset)
+
+    if data_args.do_save:
+        # Lưu dataset
+        prepared_data_path = os.path.join(exp_args.exps_dir, exp_args.exp_name, exp_args.exp_variant, "data", data_args.prepared_data_dirname)
+        dataset.save_to_disk(prepared_data_path)
 
     return dataset, test_id2meta
 
@@ -224,12 +279,13 @@ def main():
     # Create experiment directories
     exp_name = cfg.exp_manager.exp_name
     exps_dir = cfg.exp_manager.exps_dir
-    exp_variant_dir = cfg.exp_manager.exp_variant
+    exp_variant = cfg.exp_manager.exp_variant
 
-    (exp_dir, exp_variant_dir, exp_variant_data_dir, exp_variant_checkpoints_dir, exp_variant_results_dir) = create_exp_dir(exp_name, exp_variant_dir, exps_dir)
+    (exp_dir, exp_variant_dir, exp_variant_data_dir, exp_variant_checkpoints_dir, exp_variant_results_dir) = create_exp_dir(exp_name, exp_variant, exps_dir)
+
 
     # Save configuration if have any changes from the overrides
-    config_path = os.path.join(exp_variant_dir, exp_name + '.yaml')
+    config_path = os.path.join(exp_variant_dir, f'{exp_name}__{exp_variant}.yaml')
     save_cfg(cfg, config_path)
 
     # Set seed

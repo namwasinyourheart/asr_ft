@@ -148,26 +148,37 @@ def main():
     # Create experiment directories
     exp_name = cfg.exp_manager.exp_name
     exps_dir = cfg.exp_manager.exps_dir
-    exp_variant_dir = cfg.exp_manager.exp_variant
+    exp_variant = cfg.exp_manager.exp_variant
 
-    (exp_dir, exp_variant_dir, exp_variant_data_dir, exp_variant_checkpoints_dir, exp_variant_results_dir) = create_exp_dir(exp_name, exp_variant_dir, exps_dir)
+    (exp_dir, exp_variant_dir, exp_variant_data_dir, exp_variant_checkpoints_dir, exp_variant_results_dir) = create_exp_dir(exp_name, exp_variant, exps_dir)
 
     # Save configuration if have any changes from the overrides
-    config_path = os.path.join(exp_variant_dir, exp_name + '.yaml')
+    config_path = os.path.join(exp_variant_dir, f'{exp_name}__{exp_variant}.yaml')
     save_cfg(cfg, config_path)
+
 
     # Set seed
     set_seed(exp_args.seed)
 
     
     if data_args.is_prepared:
-        prepare_data_path = data_args.prepared_data_path
-        dataset = joblib.load(prepare_data_path)
+        from prepare_data import load_dict_from_json
+        prepared_data_path = os.path.join(exp_variant_data_dir, data_args.prepared_data_dirname)
+
+        id2meta_path = os.path.join(exp_variant_data_dir, data_args.id2meta_filename)
+
+        from datasets import load_from_disk
+        dataset = load_from_disk(prepared_data_path)
+        id2meta = load_dict_from_json(id2meta_path)
+
+        if data_args.do_show:
+            from prepare_data import show_ds_examples
+            show_ds_examples(dataset)
     
     else:
         from prepare_data import prepare_data
         dataset, id2meta = prepare_data(exp_args, data_args, model_args, device_args)
-        print(dataset)
+        
 
     
     # Load model and processor
@@ -202,8 +213,6 @@ def main():
     
     
     test_ds = dataset['test']
-
-    print(test_ds)
 
     data_collator = DataCollatorSpeechSeq2SeqWithPadding(
         processor=processor,
@@ -252,7 +261,7 @@ def main():
     
             # add vào nhóm theo metadata
             for i, sid in enumerate(batch["sample_id"]):
-                meta = id2meta[sid]
+                meta = id2meta[str(sid)]
                 for key in grouped_preds.keys():
                     grouped_preds[key][meta[key]].append(decoded_preds[i])
                     grouped_labels[key][meta[key]].append(decoded_labels[i])
