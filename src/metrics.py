@@ -6,6 +6,7 @@ import numpy as np
 import re
 import torch
 
+
 from nltk.translate.bleu_score import sentence_bleu
 
 nltk.download('punkt_tab')
@@ -190,6 +191,9 @@ def compute_metrics_wrapper(tokenizer, eval_metrics, model_type):
         results = {}
         pred_ids = pred.predictions
 
+        pred_ids = [np.argmax(p, axis=-1).tolist() for p in pred_ids]
+
+
         label_ids = pred.label_ids
 
         # replace -100 with the pad_token_id
@@ -229,6 +233,24 @@ def compute_metrics_wrapper(tokenizer, eval_metrics, model_type):
             results.update({"wer": wer})
 
         return results
+        
+    def compute_metrics_asr_debug(pred):
+        import numpy as np
+
+        print(">>> type(pred.predictions):", type(pred.predictions))
+        try:
+            print(">>> shape(pred.predictions):", np.array(pred.predictions).shape)
+        except Exception as e:
+            print(">>> cannot convert predictions to array:", e)
+
+        print(">>> type(pred.label_ids):", type(pred.label_ids))
+        try:
+            print(">>> shape(pred.label_ids):", np.array(pred.label_ids).shape)
+        except Exception as e:
+            print(">>> cannot convert labels to array:", e)
+
+        # return dummy để trainer không lỗi
+        return {}
 
     
     if model_type == "SEQ_2_SEQ_LM":
@@ -238,4 +260,4 @@ def compute_metrics_wrapper(tokenizer, eval_metrics, model_type):
         return compute_metrics_causal
 
     if model_type == "ASR":
-        return compute_metrics_asr2
+        return compute_metrics_asr1

@@ -18,6 +18,8 @@ from src.utils.model_utils import load_whisper_model, load_processor
 
 from src.utils.exp_utils import setup_environment, create_exp_dir
 
+from prepare_data import prepare_data
+
 
 
 warnings.filterwarnings("ignore")
@@ -130,6 +132,71 @@ def save_cfg(cfg, config_path):
     print(f"Configuration saved to {config_path}")
 
 
+import json
+import csv
+import os
+
+
+def write_to_txt(file_path, predictions_list):
+    """Writes prediction results to a TXT file."""
+    with open(file_path, "w", encoding="utf-8") as f:
+
+        for prediction in predictions_list:
+            for key, value in prediction.items():
+                f.write(f"{key}: {value}\n")
+                f.write("-" * 24 + "\n")
+            # f.write("-" * 48 + "\n\n")
+            f.write("\n\n")
+
+
+def save_predictions(predictions_list, directory, filename):
+    """
+    Saves predictions in a format determined by the file extension.
+
+    Args:
+        predictions_list (list): List of prediction results.
+        directory (str): Directory path to save files.
+        filename (str): Filename with extension (e.g., 'results.txt', 'results.json', 'results.csv').
+    """
+
+    # Ensure directory exists
+    os.makedirs(directory, exist_ok=True)
+
+    # Extract file extension
+    file_extension = filename.split('.')[-1].lower()
+    file_path = os.path.join(directory, filename)
+
+    # Choose appropriate write function
+    if file_extension == "txt":
+        write_to_txt(file_path, predictions_list)
+    # elif file_extension == "json":
+    #     write_to_json(file_path, predictions_list)
+    # elif file_extension == "csv":
+    #     write_to_csv(file_path, predictions_list)
+    else:
+        raise ValueError("Unsupported file extension. Use '.txt', '.json', or '.csv'.")
+
+import pandas as pd
+
+def summarize_metric(metric_by_group: dict, model_name: str = "model_1", top_n_province: int = 5):
+    row = {"Model": model_name}
+    
+    # Region
+    for k, v in metric_by_group["region"].items():
+        row[f"Region_{k}"] = v
+    
+    # Gender
+    gender_map = {1: "Male", 0: "Female"}
+    for k, v in metric_by_group["gender"].items():
+        row[f"Gender_{gender_map[k]}"] = v
+    
+    # Province: lấy top-n có WER cao nhất
+    top_provinces = sorted(metric_by_group["province_name"].items(), key=lambda x: -x[1])[:top_n_province]
+    for prov, val in top_provinces:
+        row[f"Province_{prov}"] = val
+    
+    return pd.DataFrame([row])
+
 
 def main():
     setup_environment()
@@ -156,30 +223,28 @@ def main():
     config_path = os.path.join(exp_variant_dir, f'{exp_name}__{exp_variant}.yaml')
     save_cfg(cfg, config_path)
 
-
     # Set seed
     set_seed(exp_args.seed)
-
     
-    if data_args.is_prepared:
-        from prepare_data import load_dict_from_json
-        prepared_data_path = os.path.join(exp_variant_data_dir, data_args.prepared_data_dirname)
+    # if data_args.is_prepared:
+    #     from prepare_data import load_dict_from_json
+    #     prepared_data_path = os.path.join(exp_variant_data_dir, data_args.prepared_data_dirname)
 
-        id2meta_path = os.path.join(exp_variant_data_dir, data_args.id2meta_filename)
+    #     id2meta_path = os.path.join(exp_variant_data_dir, data_args.id2meta_filename)
 
-        from datasets import load_from_disk
-        dataset = load_from_disk(prepared_data_path)
-        id2meta = load_dict_from_json(id2meta_path)
+    #     from datasets import load_from_disk
+    #     dataset = load_from_disk(prepared_data_path)
+    #     id2meta = load_dict_from_json(id2meta_path)
 
-        if data_args.do_show:
-            from prepare_data import show_ds_examples
-            show_ds_examples(dataset)
+    #     if data_args.do_show:
+    #         from prepare_data import show_ds_examples
+    #         show_ds_examples(dataset)
     
-    else:
-        from prepare_data import prepare_data
-        dataset, id2meta = prepare_data(exp_args, data_args, model_args, device_args)
-        
+    # else:
+    #     from prepare_data import prepare_data
+    #     dataset, id2meta = prepare_data(exp_args, data_args, model_args, device_args)
 
+    dataset, id2meta = prepare_data(exp_args, data_args, model_args, device_args)
     
     # Load model and processor
     from transcribe import load_model_for_transcribe
@@ -190,24 +255,18 @@ def main():
     # model.generation_config.forced_decoder_ids = None
     
     processor = load_processor(model_args)
-
-    # from transformers import WhisperProcessor
-    # processor = WhisperProcessor.from_pretrained(model_args.pretrained_model_name_or_path, 
-    #                                              lang="vi", 
-    #                                              task="transcribe")
-
     
     from collections import defaultdict
     
     # Lưu kết quả theo metadata
     grouped_preds = {
         "region": defaultdict(list),
-        "province": defaultdict(list),
+        "province_name": defaultdict(list),
         "gender": defaultdict(list),
     }
     grouped_labels = {
         "region": defaultdict(list),
-        "province": defaultdict(list),
+        "province_name": defaultdict(list),
         "gender": defaultdict(list),
     }
     
@@ -231,25 +290,39 @@ def main():
     wer_metric_global = load("wer")   # thêm metric cho toàn bộ dataset
 
     tokenizer = processor.tokenizer
+
+    predictions_list = []
+
+    from prepare_data import preprocess_text
     
-    # --- trong loop ---
-    for step, batch in enumerate(tqdm(test_dataloader)):
+    for step, batch in enumerate(tqdm(test_dataloader, desc="Evaluating...")):
 
         if step == eval_args.break_step:
                 break
         
         with torch.no_grad():
+            input_features = batch["input_features"].to(model.device, dtype=model.dtype)
+            
             generated_tokens = model.generate(
-                input_features=batch["input_features"].to(model.device, dtype=model.dtype),
+                input_features=input_features,
                 return_dict_in_generate=True,
                 max_new_tokens=gen_args.max_new_tokens,
             ).sequences.cpu().numpy()
-    
+
+            print("[DEBUG] generated_tokens.shape:", generated_tokens.shape)
+            
             labels = batch["labels"].cpu().numpy()
             labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
     
             decoded_preds = tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)
             decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
+
+
+
+            predictions = [preprocess_text(decoded_pred) for decoded_pred in decoded_preds]
+            ground_truth = [preprocess_text(gt) for gt in decoded_labels]
+
+            
 
             # print(decoded_preds)
             # print("*"*48)
@@ -257,7 +330,21 @@ def main():
             # print("---"*48)
     
             # add vào metric chung
-            wer_metric_global.add_batch(predictions=decoded_preds, references=decoded_labels)
+            wer_metric_global.add_batch(predictions=decoded_preds, 
+                                        references=decoded_labels)
+
+            for sid, fn, pred, label in zip(batch["sample_id"], batch["filename"], predictions, ground_truth):
+                predictions_list.append({
+                    "sid": sid,
+                    "filename": fn,
+                    "prediction": pred,
+                    "label": label,
+                })
+
+            save_predictions(predictions_list, 
+                             exp_variant_results_dir, 
+                             eval_args.prediction_filename,
+                            )
     
             # add vào nhóm theo metadata
             for i, sid in enumerate(batch["sample_id"]):
@@ -289,29 +376,6 @@ def main():
     
     print("WER by Group:\n", wer_by_group)
 
-
-    import pandas as pd
-
-    def summarize_metric(metric_by_group: dict, model_name: str = "model_1", top_n_province: int = 5):
-        row = {"Model": model_name}
-        
-        # Region
-        for k, v in metric_by_group["region"].items():
-            row[f"Region_{k}"] = v
-        
-        # Gender
-        gender_map = {1: "Male", 0: "Female"}
-        for k, v in metric_by_group["gender"].items():
-            row[f"Gender_{gender_map[k]}"] = v
-        
-        # Province: lấy top-n có WER cao nhất
-        top_provinces = sorted(metric_by_group["province"].items(), key=lambda x: -x[1])[:top_n_province]
-        for prov, val in top_provinces:
-            row[f"Province_{prov}"] = val
-        
-        return pd.DataFrame([row])
-    
-    # Ví dụ
     df_summary = summarize_metric(wer_by_group, model_name="erax-ai__EraX-WoW-Turbo-V1.0", top_n_province=5)
     
     print(df_summary)

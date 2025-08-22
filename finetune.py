@@ -3,6 +3,8 @@ import joblib
 import argparse
 from functools import partial
 
+import json
+
 import warnings
 
 import pandas as pd
@@ -29,6 +31,8 @@ import torch
 
 from dataclasses import dataclass
 from typing import Any, Dict, List, Union
+
+from prepare_data import prepare_data
 
 @dataclass
 class DataCollatorSpeechSeq2SeqWithPadding:
@@ -238,7 +242,9 @@ def finetune(
         decoder_start_token_id=model.config.decoder_start_token_id,
     )
 
-    compute_metrics=compute_metrics_wrapper(processor.tokenizer, train_args.eval_metrics, model_args.model_type)
+    compute_metrics = compute_metrics_wrapper(processor.tokenizer, 
+                                              train_args.eval_metrics, 
+                                              model_args.model_type)
     
     from transformers import Seq2SeqTrainer
     # Initialize Trainer
@@ -302,9 +308,13 @@ def finetune(
             fout.write(json.dumps(all_metrics))
 
     # Merge model if required
+    if train_args.use_peft:
+        if training_args.do_train and train_args.merge_after_train:
+            pass
 
     # Log experiment artifact
-    
+    if exp_args.wandb.log_artifact:
+        pass
 
 def main():
     setup_environment()
@@ -335,38 +345,12 @@ def main():
     set_seed(exp_args.seed)
 
     # Load dataset
-    if data_args.is_prepared:
-        from prepare_data import load_dict_from_json
-        prepared_data_path = os.path.join(exp_variant_data_dir, data_args.prepared_data_dirname)
-
-        id2meta_path = os.path.join(exp_variant_data_dir, data_args.id2meta_filename)
-
-        from datasets import load_from_disk
-        dataset = load_from_disk(prepared_data_path)
-        id2meta = load_dict_from_json(id2meta_path)
-
-        print("column_names", dataset['test'].column_names)
-
-        if data_args.do_show:
-            from prepare_data import show_ds_examples
-            show_ds_examples(dataset)
-
-    
-    else:
-        from prepare_data import prepare_data
-        dataset, id2meta = prepare_data(exp_args, data_args, model_args, device_args)
-        
-
+    dataset, id2meta = prepare_data(exp_args, data_args, model_args, device_args)
 
     train_ds, val_ds, test_ds = dataset['train'], dataset['valid'], dataset['test']
 
-    print("train_ds.column_names", train_ds.column_names)
-
-
     if train_args.train_n_samples:
         train_ds = get_data_subset(train_args.train_n_samples, train_ds, exp_args.seed)
-
-    print("train_ds.column_names", train_ds.column_names)
 
     if train_args.val_n_samples:
         val_ds = get_data_subset(train_args.val_n_samples, val_ds, exp_args.seed)
