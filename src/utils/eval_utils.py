@@ -3,6 +3,78 @@ import csv
 import os
 
 
+def read_predictions_from_txt(file_path):
+    """
+    Reads predictions_list from a TXT file written by write_to_txt.
+    
+    Args:
+        file_path (str): path to the TXT file
+
+    Returns:
+        list[dict]: list of prediction dictionaries
+    """
+    predictions_list = []
+    current_pred = {}
+
+    with open(file_path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                # Empty line signals end of a sample block
+                if current_pred:
+                    predictions_list.append(current_pred)
+                    current_pred = {}
+            elif line.startswith("-" * 24):
+                # separator, ignore
+                continue
+            else:
+                if ": " in line:
+                    key, value = line.split(": ", 1)
+                    current_pred[key] = value
+
+        # Add last prediction if file does not end with blank line
+        if current_pred:
+            predictions_list.append(current_pred)
+
+    return predictions_list
+
+def show_prediction_and_label_from_list(filename: str, dataset_split, split_filename2sid: dict, predictions_list: list):
+    """
+    Display audio, model prediction, and ground-truth label for a given filename,
+    using predictions_list (list of dicts with keys: sid, filename, prediction, label)
+    
+    Args:
+        filename (str): audio filename
+        dataset_split: HF Dataset split (train/test/valid)
+        split_filename2sid (dict): mapping filename -> sample_id
+        predictions_list (list[dict]): list of predictions
+    """
+    # Build dict filename -> prediction dict for fast lookup
+    filename2pred = {pred['filename']: pred for pred in predictions_list}
+
+    if filename not in filename2pred:
+        raise ValueError(f"Filename '{filename}' not found in predictions_list")
+
+    pred_entry = filename2pred[filename]
+    sample_id = pred_entry['sid']
+    idx = int(sample_id)
+    
+    # Get dataset sample
+    sample = dataset_split[idx]
+
+    # Play audio
+    waveform = sample['audio']['array']
+    sr = sample['audio']['sampling_rate']
+    display(Audio(waveform, rate=sr))
+
+    # Show prediction and label
+    print(f"Filename: {filename}")
+    print(f"Prediction: {pred_entry['prediction']}")
+    print(f"Ground-truth label: {pred_entry['label']}")
+
+
+
+
 def write_to_txt(file_path, predictions_list):
     """Writes prediction results to a TXT file."""
     with open(file_path, "w", encoding="utf-8") as f:
