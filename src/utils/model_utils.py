@@ -114,17 +114,19 @@ def load_whisper_model(model_args, device_args) -> PreTrainedModel:
     
     return model
 
-
 def load_processor(model_args):
+        from transformers import AutoProcessor
 
-    if model_args['pretrained_processor_name_or_path']:
-        processor_name_or_path = model_args['pretrained_processor_name_or_path']
-    else:   
-        processor_name_or_path = model_args['pretrained_model_name_or_path']
-    
-    processor = AutoProcessor.from_pretrained(processor_name_or_path)
+        if model_args['pretrained_processor_name_or_path']:
+            processor_name_or_path = model_args['pretrained_processor_name_or_path']
+        else:   
+            processor_name_or_path = model_args['pretrained_model_name_or_path']
+        
+        processor = AutoProcessor.from_pretrained(processor_name_or_path, 
+                                                  language="vi", 
+                                                  task="transcribe")
 
-    return processor
+        return processor
 
 
 

@@ -1,7 +1,4 @@
 import os
-import joblib
-import argparse
-from functools import partial
 
 import warnings
 
@@ -262,8 +259,11 @@ def main():
     # model.generation_config.task = "transcribe"
     # model.generation_config.forced_decoder_ids = None
 
+    from accelerate import Accelerator
+    accelerator = Accelerator(cpu=device_args.use_cpu)
+
     model.eval()
-    model = model.to('cuda')
+    model = model.to(accelerator.device)
     
     processor = load_processor(model_args)
     tokenizer = processor.tokenizer
