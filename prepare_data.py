@@ -109,70 +109,6 @@ def save_cfg(cfg, config_path):
     print(f"Configuration saved to {config_path}")
 
 
-# def get_id2meta(dataset, splits=None):
-#     """
-#     Generate a dictionary mapping sample_id to metadata.
-
-#     Args:
-#         dataset (DatasetDict): The dataset containing splits with sample_id and metadata fields.
-#         splits (list, optional): List of splits to process. If None, process all splits.
-
-#     Returns:
-#         dict: Mapping from sample_id to metadata dictionary.
-#     """
-#     splits = splits or list(dataset.keys())
-#     id2meta = {}
-
-#     for split in splits:
-#         for ex in dataset[split]:
-#             id2meta[ex["sample_id"]] = {
-#                 "filename": ex.get("filename", ""),
-#                 "region": ex.get("region", ""),
-#                 "province": ex.get("province_name", ""),
-#                 "gender": ex.get("gender", ""),
-#             }
-#     return id2meta
-# def get_id2meta(dataset, fields=("filename", "region","province_name","gender"), splits=None):
-#     splits = splits or dataset.keys()
-#     id2meta = {}
-
-#     for split in tqdm(splits):
-#         ds = dataset[split]
-#         # Convert split sang DataFrame để trích xuất nhanh
-#         if not getattr(ds, "is_streaming", False):
-#             import pandas as pd
-#             df = pd.DataFrame(ds)
-#             split_id2meta = df.set_index("sample_id")[list(fields)].to_dict(orient="index")
-#             id2meta.update(split_id2meta)
-#         else:
-#             # Streaming: loop từng example
-#             for ex in tqdm(ds, desc=f"Processing {split}"):
-#                 id2meta[ex["sample_id"]] = {field: ex.get(field, "") for field in fields}
-
-#     return id2meta
-
-
-
-
-# def compute_features_and_labels_wrapper(processor):
-#     def compute_features_and_labels(batch):
-#         # load and resample audio data from 48 to 16kHz
-#         audio = batch["audio"]
-    
-#         # compute log-Mel input features from input audio array 
-#         batch["input_features"] = processor.feature_extractor(audio["array"], 
-#                                                     sampling_rate=16000,).input_features[0]
-#                                                     # sampling_rate=audio["sampling_rate"]).input_features[0]
-    
-#         # encode target text to label ids 
-#         batch["labels"] = processor.tokenizer(batch["text"]).input_ids
-    
-#         batch["filename"] = batch["filename"]
-#         batch["sample_id"] = batch["sample_id"]
-#         return batch
-
-#     return compute_features_and_labels
-
 
 import string
 import unicodedata
@@ -187,14 +123,22 @@ def preprocess_text(text):
     return text
 
 
+def filter_inputs(input_length):
+	"""Filter inputs with zero input length or longer than 30s"""
+	return 0 < input_length < 48e4  # 30s × 16kHz
+
+def filter_labels(labels_length):
+	"""Filter label sequences longer than max length 448 tokens"""
+	return labels_length < 448  # MODEL.config.max_length
+
 def compute_features_and_labels_wrapper(processor):
     def compute_features_and_labels(batch):
         audio = batch['audio']
+        batch["input_length"] = len(audio["array"])
         batch["input_features"] = processor.feature_extractor(audio["array"], sampling_rate=audio["sampling_rate"]).input_features[0]
-        # # compute input length of audio sample in seconds
-        # batch["input_length"] = len(audio["array"]) / audio["sampling_rate"]
 
         batch["labels"] = processor.tokenizer(batch["text"]).input_ids
+        batch["labels_length"] = len(batch["labels"]) 
 
         batch["filename"] = batch["filename"]
         batch["sample_id"] = batch["sample_id"]
@@ -202,8 +146,6 @@ def compute_features_and_labels_wrapper(processor):
         return batch
 
     return compute_features_and_labels
-
-
 
 
 def add_sample_id(ex, idx):
@@ -231,9 +173,6 @@ def get_sid2meta(dataset,
         for split in tqdm(splits)
         for ex in tqdm(dataset[split])
     }
-
-
-
 
 
 def get_filename2sid(id2meta: dict) -> dict:
@@ -321,8 +260,15 @@ def prepare_data(exp_args, data_args, model_args, device_args):
         
         dataset = dataset.map(compute_features_and_labels, 
                               remove_columns=columns_to_remove,
-                                batched=False
+                              batched=False
                               )
+
+        dataset = (dataset
+            .filter(filter_inputs, input_columns= ["input_length"])  # no `remove_columns` coz streaming
+        	.filter(filter_labels, input_columns=["labels_length"])
+        )
+
+
         dataset.save_to_disk(prepared_data_dir)
         
     else:
@@ -401,18 +347,6 @@ def main():
 
     # Set seed
     set_seed(exp_args.seed)
-
-    # # Prepare dataset
-    # if data_args.is_prepared:
-    #     prepared_data_path = os.path.join(exp_variant_dir, "data", data_args.prepared_data_dirname)
-    #     dataset = load_from_disk(prepared_data_path)
-
-    #     id2meta_dir = os.path.join(exp_variant_data_dir,
-    #                             data_args.id2meta_dirname)
-    #     test_id2meta_path = os.path.join(id2meta_dir, "test_id2meta.json")
-    #     test_id2meta = load_dict_from_json(test_id2meta_path)
-    # else:
-    #     dataset, test_id2meta = prepare_data(exp_args, data_args, model_args, device_args)
     
     dataset, test_id2meta = prepare_data(exp_args, data_args, model_args, device_args)
     print(dataset)
