@@ -18,12 +18,18 @@ from hydra.utils import instantiate
 from omegaconf import OmegaConf
 
 from transformers import set_seed
-from src.utils.model_utils import load_whisper_model, load_processor
+from src.utils.model_utils import load_whisper_model, load_processor, get_peft_config
 
 from src.utils.exp_utils import setup_environment, create_exp_dir
 from src.metrics import compute_metrics_wrapper
 
 from src.utils.data_utils import get_data_subset
+
+from peft import (
+    LoraConfig, 
+    prepare_model_for_kbit_training,
+    get_peft_model
+)
 
 warnings.filterwarnings("ignore")
 
