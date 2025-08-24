@@ -1,5 +1,5 @@
 datasets==3.2.0
-accelerate==1.10.1
+accelerate==1.10.0
 evaluate==0.4.5
 jiwer==4.0.0
 tqdm==4.67.1
