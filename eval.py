@@ -18,8 +18,11 @@ from src.utils.model_utils import load_whisper_model, load_processor
 
 from src.utils.exp_utils import setup_environment, create_exp_dir
 
-from prepare_data import prepare_data
+from prepare_data import prepare_data, preprocess_text
 
+from tqdm.auto import tqdm
+from evaluate import load
+from collections import defaultdict
 
 
 warnings.filterwarnings("ignore")
@@ -98,13 +101,6 @@ def load_cfg(config_path, override_args=None):
     except Exception as e:
         raise RuntimeError(f"Failed to load configuration from {config_path}: {e}")
     
-    # assert os.path.basename(config_path).replace('.yaml', '') == cfg.exp_manager.exp_name, \
-    # assert cfg.exp_manager.phase_name + '__' + 
-    # assert cfg.exp_manager.exp_name == os.path.basename(config_path).replace('.yaml', ''), \
-    # f"Config file name '{os.path.basename(config_path)}' does not match experiment name '{cfg.exp_manager.exp_name}' in the config."
-
-    # cfg.train.lora.task_type = cfg.train.progress_callback.model_type = cfg.model.model_type
-    
     exp_args = cfg.exp_manager
     data_args = cfg.data
     # tokenizer_args = cfg.tokenizer
@@ -176,9 +172,34 @@ def save_predictions(predictions_list, directory, filename):
     else:
         raise ValueError("Unsupported file extension. Use '.txt', '.json', or '.csv'.")
 
-import pandas as pd
+def save_metrics(metrics, directory, filename):
+    """
+    Saves evaluation metrics (e.g., accuracy) to a TXT file.
 
-def summarize_metric(metric_by_group: dict, model_name: str = "model_1", top_n_province: int = 5):
+    Args:
+        metrics (dict): Dictionary containing evaluation metrics.
+        directory (str): Directory path to save the file.
+        filename (str):  Filename with extension .txt
+    """
+    file_path = os.path.join(directory, filename)
+
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(f"Experiment Name: {metrics.get('exp_name', 'N/A')}\n")
+        f.write(f"Experiment Variant: {metrics.get('exp_variant', 'N/A')}\n")
+        f.write("-" * 48 + "\n\n")
+        
+        for key, value in metrics.items():
+            if key != "exp_name" and key != "exp_variant":  # Avoid duplicating experiment name
+                f.write(f"{key}: {value}\n")
+        
+        f.write("-" * 48 + "\n")
+
+import pandas as pd 
+def summarize_metric(metric_by_group: dict, 
+                     model_name: str = "model_1", 
+                     top_n_province: int = 5,
+                     filename: str = "summary_metrics.csv"
+                     ):
     row = {"Model": model_name}
     
     # Region
@@ -190,12 +211,16 @@ def summarize_metric(metric_by_group: dict, model_name: str = "model_1", top_n_p
     for k, v in metric_by_group["gender"].items():
         row[f"Gender_{gender_map[k]}"] = v
     
-    # Province: lấy top-n có WER cao nhất
+    # Province: Get top-n that having highest WER
     top_provinces = sorted(metric_by_group["province_name"].items(), key=lambda x: -x[1])[:top_n_province]
     for prov, val in top_provinces:
         row[f"Province_{prov}"] = val
+
+
+    df = pd.DataFrame([row])
+    df.to_csv(filename, index=False)
     
-    return pd.DataFrame([row])
+    return df
 
 
 def main():
@@ -225,25 +250,8 @@ def main():
 
     # Set seed
     set_seed(exp_args.seed)
-    
-    # if data_args.is_prepared:
-    #     from prepare_data import load_dict_from_json
-    #     prepared_data_path = os.path.join(exp_variant_data_dir, data_args.prepared_data_dirname)
 
-    #     id2meta_path = os.path.join(exp_variant_data_dir, data_args.id2meta_filename)
-
-    #     from datasets import load_from_disk
-    #     dataset = load_from_disk(prepared_data_path)
-    #     id2meta = load_dict_from_json(id2meta_path)
-
-    #     if data_args.do_show:
-    #         from prepare_data import show_ds_examples
-    #         show_ds_examples(dataset)
-    
-    # else:
-    #     from prepare_data import prepare_data
-    #     dataset, id2meta = prepare_data(exp_args, data_args, model_args, device_args)
-
+    # Get dataset
     dataset, id2meta = prepare_data(exp_args, data_args, model_args, device_args)
     
     # Load model and processor
@@ -253,12 +261,27 @@ def main():
     # model.generation_config.language = "vi"
     # model.generation_config.task = "transcribe"
     # model.generation_config.forced_decoder_ids = None
+
+    model.eval()
+    model = model.to('cuda')
     
     processor = load_processor(model_args)
+    tokenizer = processor.tokenizer
     
-    from collections import defaultdict
+    test_ds = dataset['test']
+
+    data_collator = DataCollatorSpeechSeq2SeqWithPadding(
+        processor=processor,
+        decoder_start_token_id=model.config.decoder_start_token_id,
+    )
+    test_dataloader = DataLoader(test_ds, 
+                                 batch_size=eval_args.batch_size, 
+                                 collate_fn=data_collator
+                                )
+    wer_metric = load("wer")
+    predictions_list = []
     
-    # Lưu kết quả theo metadata
+    
     grouped_preds = {
         "region": defaultdict(list),
         "province_name": defaultdict(list),
@@ -270,30 +293,6 @@ def main():
         "gender": defaultdict(list),
     }
     
-    
-    test_ds = dataset['test']
-
-    data_collator = DataCollatorSpeechSeq2SeqWithPadding(
-        processor=processor,
-        decoder_start_token_id=model.config.decoder_start_token_id,
-)
-    test_dataloader = DataLoader(test_ds, 
-                                 batch_size=eval_args.batch_size, 
-                                 collate_fn=data_collator)
-    
-    model.eval()
-    model = model.to('cuda')
-    from tqdm.auto import tqdm
-
-    from evaluate import load
-    wer_metric = load("wer")
-    wer_metric_global = load("wer")   # thêm metric cho toàn bộ dataset
-
-    tokenizer = processor.tokenizer
-
-    predictions_list = []
-
-    from prepare_data import preprocess_text
     
     for step, batch in enumerate(tqdm(test_dataloader, desc="Evaluating...")):
 
@@ -309,7 +308,7 @@ def main():
                 max_new_tokens=gen_args.max_new_tokens,
             ).sequences.cpu().numpy()
 
-            print("[DEBUG] generated_tokens.shape:", generated_tokens.shape)
+            # print("[DEBUG] generated_tokens.shape:", generated_tokens.shape)
             
             labels = batch["labels"].cpu().numpy()
             labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
@@ -317,21 +316,11 @@ def main():
             decoded_preds = tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)
             decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
 
-
-
             predictions = [preprocess_text(decoded_pred) for decoded_pred in decoded_preds]
             ground_truth = [preprocess_text(gt) for gt in decoded_labels]
 
-            
-
-            # print(decoded_preds)
-            # print("*"*48)
-            # print(decoded_labels)
-            # print("---"*48)
-    
-            # add vào metric chung
-            wer_metric_global.add_batch(predictions=decoded_preds, 
-                                        references=decoded_labels)
+            wer_metric.add_batch(predictions=decoded_preds, 
+                                 references=decoded_labels)
 
             for sid, fn, pred, label in zip(batch["sample_id"], batch["filename"], predictions, ground_truth):
                 predictions_list.append({
@@ -340,46 +329,55 @@ def main():
                     "prediction": pred,
                     "label": label,
                 })
-
-            save_predictions(predictions_list, 
-                             exp_variant_results_dir, 
-                             eval_args.prediction_filename,
-                            )
     
-            # add vào nhóm theo metadata
             for i, sid in enumerate(batch["sample_id"]):
                 meta = id2meta[str(sid)]
                 for key in grouped_preds.keys():
                     grouped_preds[key][meta[key]].append(decoded_preds[i])
                     grouped_labels[key][meta[key]].append(decoded_labels[i])
     
-    # --- sau khi loop xong ---
-    wer_global = 100 * wer_metric_global.compute()
-    print("WER toàn bộ:", wer_global)
+    # Save predictions
+    save_predictions(predictions_list, 
+                     exp_variant_results_dir, 
+                     eval_args.prediction_filename,
+                    )
+    # Compute WER
+    wer= 100 * wer_metric.compute()
+    print("Overall WER:", wer)
+
     
-    # CER theo từng nhóm (như code trước)
-    from evaluate import load
-    
+    # Compute WER by group: region, province_name, gender 
     wer_by_group = {}
     
     for meta_key in grouped_preds.keys():
         wer_by_group[meta_key] = {}
         for group_value in grouped_preds[meta_key]:
-            # tạo metric riêng cho từng group
+
             metric_tmp = load("wer")
             metric_tmp.add_batch(
                 predictions=grouped_preds[meta_key][group_value],
                 references=grouped_labels[meta_key][group_value],
             )
             wer_by_group[meta_key][group_value] = 100 * metric_tmp.compute()
-    
-    
-    print("WER by Group:\n", wer_by_group)
+    print("WER by Group:", wer_by_group)
 
-    df_summary = summarize_metric(wer_by_group, model_name="erax-ai__EraX-WoW-Turbo-V1.0", top_n_province=5)
-    
-    print(df_summary)
+    # Save metrics
+    metrics = {
+        "exp_name": exp_args.exp_name,
+        "exp_variant": exp_args.exp_variant,
+        "wer": wer,
+        "wer_by_group": wer_by_group
+    }
 
+    save_metrics(metrics, 
+                 exp_variant_results_dir, 
+                 eval_args.metric_filename)
+
+    summarize_metric(wer_by_group,
+                     model_name=exp_args.exp_name + '_' + exp_args.exp_variant,
+                     top_n_province=10,
+                     filename=os.path.join(exp_variant_results_dir, f"summary_metrics_{exp_args.exp_name}_{exp_args.exp_variant}.csv")
+                     )
     
 if __name__ == "__main__":
     main()
