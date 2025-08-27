@@ -17,3 +17,4 @@ py7zr==0.22.0
 colorama==0.4.6
 soundfile==0.13.1
 librosa==0.11.0
+torchcodec==0.6.0
