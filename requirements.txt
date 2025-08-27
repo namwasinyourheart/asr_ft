@@ -5,7 +5,7 @@ jiwer==4.0.0
 tqdm==4.67.1
 peft==0.14.0
 trl==0.14.0
-bitsandbytes==0.45.1
+bitsandbytes==0.47.0
 git+https://github.com/huggingface/transformers
 wandb==0.19.1
 omegaconf==2.3.0
@@ -17,4 +17,4 @@ py7zr==0.22.0
 colorama==0.4.6
 soundfile==0.13.1
 librosa==0.11.0
-torchcodec==0.6.0
+torchcodec==0.6.0  # apt-get install -y ffmpeg
