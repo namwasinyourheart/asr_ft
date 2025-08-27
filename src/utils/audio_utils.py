@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import torch
-from tqdm.audto import tqdm
+from tqdm.auto import tqdm
 from datasets import Audio, Dataset, DatasetDict
 import librosa
 
