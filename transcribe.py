@@ -1,7 +1,6 @@
-from omegaconf import OmegaConf
+import os
 
-import argparse
-
+from hydra import initialize, compose
 
 from transformers import (
     set_seed
@@ -16,8 +15,35 @@ import librosa
 
 
 
-def load_config(config_path):
-    return OmegaConf.load(config_path)
+def load_cfg(config_path, override_args=None):
+
+    """
+    Load a configuration file using Hydra and OmegaConf.
+    
+    Args:
+        config_path (str): Path to the configuration file.
+        override_args (list, optional): List of arguments to override configuration values.
+
+    Returns:
+        cfg: Loaded configuration object.
+    """
+
+    override_args = override_args or []
+    config_path = os.path.normpath(config_path)
+    
+    if not os.path.isfile(config_path):
+        raise FileNotFoundError(f"Configuration file not found at: {config_path}")
+    
+    config_dir = os.path.dirname(config_path)
+    config_fn = os.path.splitext(os.path.basename(config_path))[0]
+    
+    try:
+        with initialize(version_base=None, config_path=config_dir):
+            cfg = compose(config_name=config_fn, overrides=override_args)
+    except Exception as e:
+        raise RuntimeError(f"Failed to load configuration from {config_path}: {e}")
+
+    return cfg
 
 
 def load_audio(audio_path, target_sr=16000):
@@ -70,22 +96,25 @@ def load_model_for_transcribe(model_args, device_args):
     return model
 
 def parse_args():
+    import argparse
     parser = argparse.ArgumentParser(description="Load generation config.")
-    parser.add_argument("--config_path", type=str, required=True, help="Path to the YAML config file for transcrbing.")
-    return parser.parse_args()
+    parser.add_argument("--config_path", type=str, required=True, help="Path to the YAML config file for generating.")
+
+    args, override_args = parser.parse_known_args()
+    return args, override_args
 
 
 def main():
-    args = parse_args()
-
-    # Load the generation config file
-    cfg = load_config(args.config_path)
 
     # Setup environment
     setup_environment()
 
+    # Parse arguments
+    args, override_args = parse_args()
 
-    # print(OmegaConf.to_yaml(cfg))
+    # Load the generation config file
+    cfg = load_cfg(args.config_path, override_args)
+
 
     model_args = cfg.model
     gen_args = cfg.generate
@@ -96,6 +125,7 @@ def main():
 
 
     model = load_model_for_transcribe(model_args, device_args)
+    print(f"Model: {model_args.pretrained_model_name_or_path}")
     processor = load_processor(model_args)
 
     model.config.forced_decoder_ids = None
@@ -113,7 +143,7 @@ def main():
 
     input_features = inputs["input_features"]
 
-    print(model.device)
+    print(f"Device: {model.device}")
 
     # Generate transcription
     predicted_ids = model.generate(input_features)
