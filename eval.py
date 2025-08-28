@@ -334,6 +334,10 @@ def main():
             for i, sid in enumerate(batch["sample_id"]):
                 meta = all_sid2meta['test'][str(sid)]
                 for key in grouped_preds.keys():
+
+                    if key not in meta:   # <-- skip missing entirely
+                        continue
+                    
                     grouped_preds[key][meta[key]].append(decoded_preds[i])
                     grouped_labels[key][meta[key]].append(decoded_labels[i])
     
@@ -348,18 +352,37 @@ def main():
 
     
     # Compute WER by group: dialect, province_name, gender 
-    wer_by_group = {}
+    # wer_by_group = {}
     
+    # for meta_key in grouped_preds.keys():
+    #     wer_by_group[meta_key] = {}
+    #     for group_value in grouped_preds[meta_key]:
+
+    #         metric_tmp = load("wer")
+    #         metric_tmp.add_batch(
+    #             predictions=grouped_preds[meta_key][group_value],
+    #             references=grouped_labels[meta_key][group_value],
+    #         )
+    #         wer_by_group[meta_key][group_value] = 100 * metric_tmp.compute()
+
+    wer_by_group = {}
+
     for meta_key in grouped_preds.keys():
         wer_by_group[meta_key] = {}
-        for group_value in grouped_preds[meta_key]:
-
+        for group_value, preds in grouped_preds[meta_key].items():
+            refs = grouped_labels[meta_key][group_value]
+            if len(preds) == 0 or len(refs) == 0:
+                continue  # skip empty groups
             metric_tmp = load("wer")
-            metric_tmp.add_batch(
-                predictions=grouped_preds[meta_key][group_value],
-                references=grouped_labels[meta_key][group_value],
-            )
+            metric_tmp.add_batch(predictions=preds, references=refs)
             wer_by_group[meta_key][group_value] = 100 * metric_tmp.compute()
+
+        # if the whole meta_key is missing → drop it
+        if not wer_by_group[meta_key]:
+            wer_by_group.pop(meta_key)
+
+
+
     print("WER by Group:", wer_by_group)
 
     # Save metrics
