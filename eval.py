@@ -199,9 +199,9 @@ def summarize_metric(metric_by_group: dict,
                      ):
     row = {"Model": model_name}
     
-    # Region
-    for k, v in metric_by_group["region"].items():
-        row[f"Region_{k}"] = v
+    # dialect
+    for k, v in metric_by_group["dialect"].items():
+        row[f"Dialect_{k}"] = v
     
     # Gender
     gender_map = {1: "Male", 0: "Female"}
@@ -284,12 +284,12 @@ def main():
     
     
     grouped_preds = {
-        "region": defaultdict(list),
+        "dialect": defaultdict(list),
         "province_name": defaultdict(list),
         "gender": defaultdict(list),
     }
     grouped_labels = {
-        "region": defaultdict(list),
+        "dialect": defaultdict(list),
         "province_name": defaultdict(list),
         "gender": defaultdict(list),
     }
@@ -347,7 +347,7 @@ def main():
     print("Overall WER:", wer)
 
     
-    # Compute WER by group: region, province_name, gender 
+    # Compute WER by group: dialect, province_name, gender 
     wer_by_group = {}
     
     for meta_key in grouped_preds.keys():
