@@ -49,6 +49,46 @@ def unify_colnames(dataset, col_mapping=None):
     else:
         raise TypeError("Input must be a Dataset or DatasetDict")
 
+from datasets import Dataset, DatasetDict
+
+def unify_splitnames(dataset, split_mapping=None):
+    """
+    Normalize split names in a DatasetDict based on a mapping.
+    
+    Args:
+        dataset (Dataset or DatasetDict): HF dataset object
+        split_mapping (dict): mapping {old_split: new_split}
+    
+    Returns:
+        DatasetDict: with renamed splits
+    """
+    if split_mapping is None:
+        split_mapping = {
+            "validation": "val",
+            "valid": "val",
+            "dev": "val",
+            "eval": "val"
+        }
+
+    if isinstance(dataset, Dataset):
+        # single Dataset doesn't have multiple splits
+        return dataset
+
+    elif isinstance(dataset, DatasetDict):
+        new_ds = DatasetDict()
+        for split, ds in dataset.items():
+            new_name = split_mapping.get(split, split)
+            if new_name in new_ds:
+                # merge if multiple splits map to same target
+                new_ds[new_name] = new_ds[new_name].concatenate(ds)
+            else:
+                new_ds[new_name] = ds
+        return new_ds
+
+    else:
+        raise TypeError("Input must be a Dataset or DatasetDict")
+
+
 def add_sample_id(dataset, col_name="sample_id"):
     """
     Add a sequential sample_id column to each split in a DatasetDict,
