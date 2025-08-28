@@ -1,14 +1,8 @@
 import os
-import shutil
-import joblib
-import argparse
-from functools import partial
 
 import warnings
 
-import pandas as pd
-from datasets import load_dataset, load_from_disk, Dataset, DatasetDict, Audio
-from torch.utils.data import DataLoader
+from datasets import load_from_disk, Audio
 
 from hydra import initialize, compose
 from omegaconf import OmegaConf
@@ -24,17 +18,11 @@ from tqdm.auto import tqdm
 warnings.filterwarnings("ignore")
 
 
-import json
+from src.utils.utils import save_dict_to_json, load_dict_from_json
 
-def save_dict_to_json(d: dict, filepath: str):
-    """Save dictionary to JSON file"""
-    with open(filepath, "w", encoding="utf-8") as f:
-        json.dump(d, f, ensure_ascii=False, indent=2)
-
-def load_dict_from_json(filepath: str) -> dict:
-    """Load dictionary from JSON file"""
-    with open(filepath, "r", encoding="utf-8") as f:
-        return json.load(f)
+import string
+import unicodedata
+import re
 
 
 def parse_args():
@@ -109,11 +97,6 @@ def save_cfg(cfg, config_path):
     print(f"Configuration saved to {config_path}")
 
 
-
-import string
-import unicodedata
-import re
-
 def preprocess_text(text):
     text = unicodedata.normalize("NFKC", text)  # apply NFKC
     text = text.lower()  # convert to uppercase
@@ -148,9 +131,9 @@ def compute_features_and_labels_wrapper(processor):
     return compute_features_and_labels
 
 
-def add_sample_id(ex, idx):
-    ex["sample_id"] = idx
-    return ex
+# def add_sample_id(ex, idx):
+#     ex["sample_id"] = idx
+#     return ex
 
 
 def get_sid2meta(dataset, 
@@ -193,6 +176,14 @@ def get_filename2sid(id2meta: dict) -> dict:
 
     
 def prepare_data(exp_args, data_args, model_args, device_args):
+
+    from src.utils.audio_utils import (
+        get_sid2meta, 
+        get_filename2sid, 
+        unify_colnames,
+        add_sample_id,
+        add_column_filename
+    )
     
     processor = load_processor(model_args)
     # dataset = load_dataset(data_args.raw_data_dir, 
@@ -201,49 +192,41 @@ def prepare_data(exp_args, data_args, model_args, device_args):
     dataset = load_from_disk(data_args.raw_data_dir)
     dataset = dataset.cast_column("audio", Audio(sampling_rate=16000)) 
 
+    dataset = unify_colnames(dataset)
+    dataset = add_sample_id(dataset)
 
-    print("Add sample_id")
-    if data_args.streaming:
-        dataset = dataset.map(
-            add_sample_id_streaming,
-            with_indices=True,
-            batched=False  # Xử lý từng mẫu một
-        )
-    else:
-        for split in tqdm(dataset):
-            sample_ids = list(range(len(dataset[split])))
-            dataset[split] = dataset[split].add_column("sample_id", sample_ids)
     
+    dataset = add_column_filename(dataset)
+
     # Get id2meta
     print("Getting sid2meta...")
     
-    # test_id2meta_path = os.path.join(exp_variant_data_dir, "test_id2meta.json")
-
     common_processed_data_dir = data_args.common_processed_data_dir
     os.makedirs(common_processed_data_dir, exist_ok=True)
-    
-    test_id2meta_path = os.path.join(common_processed_data_dir, "test_id2meta.json")
 
-    if not os.path.exists(test_id2meta_path):
-        test_id2meta = get_sid2meta(dataset, splits=["test"])
-        print(f"Saving test_id2meta to {test_id2meta_path}")
-        save_dict_to_json(test_id2meta, test_id2meta_path)
+    all_sid2meta_path = os.path.join(common_processed_data_dir, "all_sid2meta.json")
+
+    if not os.path.exists(all_sid2meta_path):
+        all_sid2meta = get_sid2meta(ds)
+        print(f"Saving all_id2meta to {all_sid2meta_path}")
+        save_dict_to_json(all_sid2meta, all_sid2meta_path)
     else:
-        print(f"{test_id2meta_path} already exists, skipping creation.")
-        test_id2meta = load_dict_from_json(test_id2meta_path)
+        print(f"{all_sid2meta_path} already exists, skipping creation.")
+        all_sid2meta = load_dict_from_json(all_sid2meta_path)
+
 
     # Get filename2sid
     print("Getting filename2sid...")
     
-    test_filename2sid_path = os.path.join(common_processed_data_dir, "test_filename2sid.json")
-    if not os.path.exists(test_filename2sid_path):
-        test_filename2sid = get_filename2sid(test_id2meta)
-        print(f"Saving test_id2meta to {test_filename2sid_path}")
-        save_dict_to_json(test_filename2sid, test_filename2sid_path)
+    all_filename2sid_path = os.path.join(common_processed_data_dir, "all_filename2sid.json")
+    if not os.path.exists(all_filename2sid_path):
+        all_filename2sid = get_filename2sid(ds)
+        print(f"Saving all_filename2sid to {all_filename2sid_path}")
+        save_dict_to_json(all_filename2sid, all_filename2sid_path)
     
     else:
-        print(f"{test_id2meta_path} already exists, skipping creation.")
-        test_filename2sid = load_dict_from_json(test_filename2sid_path)
+        print(f"{all_filename2sid_path} already exists, skipping creation.")
+        all_filename2sid = load_dict_from_json(all_filename2sid_path)
         
     exp_variant_data_dir = os.path.join(exp_args.exps_dir, 
                                         exp_args.exp_name, 
@@ -252,6 +235,8 @@ def prepare_data(exp_args, data_args, model_args, device_args):
     prepared_data_dir = os.path.join(exp_variant_data_dir, 
                                      data_args.prepared_data_dirname)
     if not os.path.exists(prepared_data_dir):
+
+        print("Computing features and labels ...")
     
         columns_to_retain = ["sample_id", "filename", "input_features", "labels"]
         columns_to_remove = [col for col in list(next(iter(dataset['test'])).keys()) if col not in columns_to_retain]
@@ -282,7 +267,7 @@ def prepare_data(exp_args, data_args, model_args, device_args):
     #     # Lưu dataset
     #     dataset.save_to_disk(prepared_data_dir)
 
-    return dataset,test_id2meta
+    return dataset, all_sid2meta
 
 def show_ds_examples(ds_dict, num_examples=3, show_audio_array=False, audio_preview_len=10):
     """
@@ -348,9 +333,11 @@ def main():
     # Set seed
     set_seed(exp_args.seed)
     
-    dataset, test_id2meta = prepare_data(exp_args, data_args, model_args, device_args)
+    dataset, all_sid2meta = prepare_data(exp_args, data_args, model_args, device_args)
     print(dataset)
-    print(test_id2meta.keys())
+    print(all_sid2meta.keys())
+    for split in all_sid2meta:
+        print(f"{split}: {len(all_sid2meta[split])} sid2meta")
 
 
 if __name__ == "__main__":
