@@ -36,6 +36,7 @@ def unify_colnames(dataset, col_mapping=None):
             "region": "dialect",
             "dialect": "dialect",
             "gender": "gender",
+            "transcription": "text"
         }
     
     if isinstance(dataset, DatasetDict):
