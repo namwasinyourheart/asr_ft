@@ -1,0 +1,122 @@
+exp_manager:
+  prj_name: vnpost_asr_ft
+  exp_name: "vinai_phowhisper-large__lsvsc"
+  exp_variant: "wo_ft"
+  exp_notes: "data preprocess: filter outaudio, labels with length exceed; donot preprocess text for training"
+  seed: 202502
+  task_name: 'vi_asr'
+  dataset_name: 
+  # model_name: 'openai/whisper-base'
+  model_name: 'vinai/phowhisper-large'
+  phase_name: 'eval'
+  print_cfg: true
+  exps_dir: 'exps'
+  print_model: true
+  print_processor: false
+  print_trainable_parameters: true
+  print_parameter_datatypes: true
+  print_peft_config: true
+  print_device: true
+  print_training_args: false
+  wandb:
+    project: vnpost_asr_ft
+    log_artifact: false
+
+data:
+  is_prepared: true 
+  raw_data_dir: "/mnt/data-vol/LSVSC/raw"
+  # raw_data_dir: "data/ViMD/raw"
+  common_processed_data_dir: "/mnt/data-vol/LSVSC/processed"
+  # common_processed_data_dir: "data/ViMD/processed"
+  streaming: false
+  columns_to_retain: ["sample_id", "audio", "text", "filename"]
+  # do_split: true
+  # subset_ratio: 1
+  # val_ratio: 0.25
+  # test_ratio: 0.2
+  do_save: true
+  do_show: false
+  prepared_data_dirname: prepared_data
+
+model: 
+  model_type: "ASR"
+  pretrained_model_name_or_path: "vinai/phowhisper-large"
+  pretrained_processor_name_or_path: 
+  load_in_4bit: false
+  load_in_8bit: false
+  bnb_4bit_compute_dtype: null
+  bnb_4bit_quant_type: "nf4"
+  bnb_4bit_use_double_quant: false
+  bnb_4bit_quant_storage: "uint8"
+  torch_dtype: float16
+  attn_implementation: null
+  device_map: null
+  low_cpu_mem_usage: null
+  adapter_path: 
+
+train:
+    use_peft: false
+    lora:
+      r: 32
+      lora_alpha: 64
+      lora_dropout: 0.0
+      bias: none
+      task_type: 
+      inference_mode: false
+      target_modules: ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+      modules_to_save: []
+
+    merge_after_train: true
+    train_n_samples: -1
+    val_n_samples: 128
+    test_n_samples: 128
+
+    do_resume_from_checkpoint: false
+
+    train_metric_filename: 'train_metrics.json'
+    eval_metrics: ['wer']
+
+    train_args:
+      # _target_: transformers.TrainingArguments
+      _target_: transformers.Seq2SeqTrainingArguments
+      resume_from_checkpoint: 
+      do_train: true
+      do_eval: true
+      do_predict: false
+      learning_rate: 5e-5
+      warmup_steps: 500
+      num_train_epochs: 1
+      # max_steps: 1
+      per_device_train_batch_size: 128
+      # gradient_accumulation_steps=1
+      per_device_eval_batch_size: 192
+      # logging_strategy: "no"
+      logging_steps: 1
+      logging_first_step: true
+      save_strategy: epoch
+      eval_strategy: steps
+      eval_steps: 10
+      eval_accumulation_steps: 1
+      eval_on_start: true
+      use_cpu: false
+      report_to: None
+      remove_unused_columns: false
+
+generate:
+  max_new_tokens: 256
+  pad_token_id: null
+  skip_special_tokens: True
+  temperature:
+  do_sample:
+
+
+evaluate:
+  batch_size: 128
+  break_step: -1
+  do_extract_prediction: True
+  metric_filename: 'test_metrics.txt'
+  prediction_filename: 'test_predictions.txt'
+  result_filename: 'test_result.txt'
+
+device:
+  use_cpu: False
