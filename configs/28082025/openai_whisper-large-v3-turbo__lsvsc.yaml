@@ -1,6 +1,6 @@
 exp_manager:
   prj_name: vnpost_asr_ft
-  exp_name: "openai_whisper-large-v3-turbo__lsvsc"
+  exp_name: "openai_phowhisper-large__lsvsc"
   exp_variant: "wo_ft"
   exp_notes: "data preprocess: filter outaudio, labels with length exceed; donot preprocess text for training"
   seed: 202502
@@ -28,6 +28,7 @@ data:
   # raw_data_dir: "data/ViMD/raw"
   common_processed_data_dir: "/mnt/data-vol/LSVSC/processed"
   # common_processed_data_dir: "data/ViMD/processed"
+  exps_data_dir: "/mnt/data-vol/LSVSC/exps"
   streaming: false
   columns_to_retain: ["sample_id", "audio", "text", "filename"]
   # do_split: true

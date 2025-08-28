@@ -28,6 +28,7 @@ data:
   # raw_data_dir: "data/ViMD/raw"
   common_processed_data_dir: "/mnt/data-vol/ViMD/processed"
   # common_processed_data_dir: "data/ViMD/processed"
+  exps_data_dir: "/mnt/data-vol/ViMD/exps"
   streaming: false
   columns_to_retain: ["sample_id", "audio", "text", "filename"]
   # do_split: true
