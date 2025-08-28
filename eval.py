@@ -249,7 +249,8 @@ def main():
     set_seed(exp_args.seed)
 
     # Get dataset
-    dataset, id2meta = prepare_data(exp_args, data_args, model_args, device_args)
+    dataset, all_sid2meta = prepare_data(exp_args, data_args, model_args, device_args)
+
     
     # Load model and processor
     from transcribe import load_model_for_transcribe
@@ -331,7 +332,7 @@ def main():
                 })
     
             for i, sid in enumerate(batch["sample_id"]):
-                meta = id2meta[str(sid)]
+                meta = all_sid2meta['test'][str(sid)]
                 for key in grouped_preds.keys():
                     grouped_preds[key][meta[key]].append(decoded_preds[i])
                     grouped_labels[key][meta[key]].append(decoded_labels[i])
