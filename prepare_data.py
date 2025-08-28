@@ -181,60 +181,80 @@ def prepare_data(exp_args, data_args, model_args, device_args):
         get_sid2meta, 
         get_filename2sid, 
         unify_colnames,
+        unify_splitnames,
         add_sample_id,
         add_column_filename
     )
-    
-    processor = load_processor(model_args)
-    # dataset = load_dataset(data_args.raw_data_dir, 
-    #                        streaming=data_args.streaming)
-
-    dataset = load_from_disk(data_args.raw_data_dir)
-    dataset = dataset.cast_column("audio", Audio(sampling_rate=16000)) 
-
-    dataset = unify_colnames(dataset)
-    dataset = add_sample_id(dataset)
-
-    
-    dataset = add_column_filename(dataset)
-
-    # Get id2meta
-    print("Getting sid2meta...")
-    
-    common_processed_data_dir = data_args.common_processed_data_dir
-    os.makedirs(common_processed_data_dir, exist_ok=True)
-
-    all_sid2meta_path = os.path.join(common_processed_data_dir, "all_sid2meta.json")
-
-    if not os.path.exists(all_sid2meta_path):
-        all_sid2meta = get_sid2meta(ds)
-        print(f"Saving all_id2meta to {all_sid2meta_path}")
-        save_dict_to_json(all_sid2meta, all_sid2meta_path)
-    else:
-        print(f"{all_sid2meta_path} already exists, skipping creation.")
-        all_sid2meta = load_dict_from_json(all_sid2meta_path)
 
 
-    # Get filename2sid
-    print("Getting filename2sid...")
-    
-    all_filename2sid_path = os.path.join(common_processed_data_dir, "all_filename2sid.json")
-    if not os.path.exists(all_filename2sid_path):
-        all_filename2sid = get_filename2sid(ds)
-        print(f"Saving all_filename2sid to {all_filename2sid_path}")
-        save_dict_to_json(all_filename2sid, all_filename2sid_path)
-    
-    else:
-        print(f"{all_filename2sid_path} already exists, skipping creation.")
-        all_filename2sid = load_dict_from_json(all_filename2sid_path)
-        
-    exp_variant_data_dir = os.path.join(exp_args.exps_dir, 
-                                        exp_args.exp_name, 
-                                        exp_args.exp_variant, 
-                                        "data")    
-    prepared_data_dir = os.path.join(exp_variant_data_dir, 
-                                     data_args.prepared_data_dirname)
+    # exp_variant_data_dir = os.path.join(exp_args.exps_dir, 
+    #                                     exp_args.exp_name, 
+    #                                     exp_args.exp_variant, 
+    #                                     "data")    
+    # prepared_data_dir = os.path.join(exp_variant_data_dir, 
+    #                                  data_args.prepared_data_dirname)
+
+    prepared_data_dirname = exp_args.exp_name + '__' + exp_args.exp_variant
+    prepared_data_dir = os.path.join(data_args.exps_data_dir, prepared_data_dirname)
+
+    print("prepared_data_dir:", prepared_data_dir)
+
     if not os.path.exists(prepared_data_dir):
+    
+        processor = load_processor(model_args)
+        # dataset = load_dataset(data_args.raw_data_dir, 
+        #                        streaming=data_args.streaming)
+    
+        dataset = load_from_disk(data_args.raw_data_dir)
+        dataset = dataset.cast_column("audio", Audio(sampling_rate=16000)) 
+    
+        dataset = unify_colnames(dataset)
+
+        dataset = unify_splitnames(dataset)
+
+        dataset = add_sample_id(dataset)
+    
+        
+        dataset = add_column_filename(dataset)
+
+
+        common_processed_data_dir = data_args.common_processed_data_dir
+        os.makedirs(common_processed_data_dir, exist_ok=True)
+        
+        all_sid2meta_path = os.path.join(common_processed_data_dir, "all_sid2meta.json")
+        
+        # Get id2meta
+        print("Getting sid2meta...")
+    
+        if not os.path.exists(all_sid2meta_path):
+            all_sid2meta = get_sid2meta(dataset)
+            print(f"Saving all_id2meta to {all_sid2meta_path}")
+            save_dict_to_json(all_sid2meta, all_sid2meta_path)
+        else:
+            print(f"{all_sid2meta_path} already exists, skipping creation.")
+            all_sid2meta = load_dict_from_json(all_sid2meta_path)
+    
+    
+        # Get filename2sid
+        print("Getting filename2sid...")
+        
+        all_filename2sid_path = os.path.join(common_processed_data_dir, "all_filename2sid.json")
+        if not os.path.exists(all_filename2sid_path):
+            all_filename2sid = get_filename2sid(dataset)
+            print(f"Saving all_filename2sid to {all_filename2sid_path}")
+            save_dict_to_json(all_filename2sid, all_filename2sid_path)
+        
+        else:
+            print(f"{all_filename2sid_path} already exists, skipping creation.")
+            all_filename2sid = load_dict_from_json(all_filename2sid_path)
+            
+    # exp_variant_data_dir = os.path.join(exp_args.exps_dir, 
+    #                                     exp_args.exp_name, 
+    #                                     exp_args.exp_variant, 
+    #                                     "data")    
+    # prepared_data_dir = os.path.join(exp_variant_data_dir, 
+    #                                  data_args.prepared_data_dirname)
+    # if not os.path.exists(prepared_data_dir):
 
         print("Computing features and labels ...")
     
@@ -257,6 +277,12 @@ def prepare_data(exp_args, data_args, model_args, device_args):
         dataset.save_to_disk(prepared_data_dir)
         
     else:
+        common_processed_data_dir = data_args.common_processed_data_dir
+        os.makedirs(common_processed_data_dir, exist_ok=True)
+        
+        all_sid2meta_path = os.path.join(common_processed_data_dir, "all_sid2meta.json")
+        
+        all_sid2meta = load_dict_from_json(all_sid2meta_path)
         dataset = load_from_disk(prepared_data_dir)
     
     if data_args.do_show:
