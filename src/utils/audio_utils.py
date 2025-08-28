@@ -78,6 +78,7 @@ def add_column_filename(dataset, col_audio="audio", col_name="filename"):
     """
     Add a 'filename' column to each split in a DatasetDict,
     extracting the basename from the audio path.
+    Skips adding if the column already exists.
 
     Args:
         dataset (DatasetDict): HuggingFace DatasetDict
@@ -89,6 +90,10 @@ def add_column_filename(dataset, col_audio="audio", col_name="filename"):
     """
     new_splits = {}
     for split in tqdm(dataset, desc="Adding filename"):
+        if col_name in dataset[split].column_names:
+            new_splits[split] = dataset[split]  # skip if column exists
+            continue
+
         filenames = []
         for ex in dataset[split]:
             audio_val = ex[col_audio]
@@ -103,7 +108,7 @@ def add_column_filename(dataset, col_audio="audio", col_name="filename"):
     return DatasetDict(new_splits)
 
 def get_sid2meta(dataset, 
-                 fields=("filename", "region", "province_name", "gender"), 
+                 fields=("filename", "dialect", "province_name", "gender"), 
                  splits=None):
     """
     Build id2meta dictionary from dataset, grouped by split.
