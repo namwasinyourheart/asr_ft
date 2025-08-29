@@ -204,7 +204,6 @@ def summarize_metric(metric_by_group: dict,
         row[f"Dialect_{k}"] = v
     
     # Gender
-
     gender_map = {1: "Male", 0: "Female", "male": "Male", "female": "Female"}
     for k, v in metric_by_group.get("gender", {}).items():
         row[f"Gender_{gender_map.get(k, str(k))}"] = v
