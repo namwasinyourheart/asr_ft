@@ -1,5 +1,18 @@
 import os
 
+from pathlib import Path
+from omegaconf import OmegaConf
+
+
+def print_cfg(yaml_path: str, node: str = None) -> None:
+    cfg = OmegaConf.load(Path(yaml_path))
+    if node:
+        cfg = OmegaConf.select(cfg, node)
+        if cfg is None:
+            raise KeyError(f"Config node not found: {node}")
+    print(OmegaConf.to_yaml(cfg, resolve=True))
+
+
 def create_exp_dir(exp_name, exp_variant, exps_dir='exps', sub_dirs=['checkpoints', 'data', 'results']):
     """
     Create necessary directories for an experiment.
