@@ -3,10 +3,9 @@ exp_manager:
   exp_name: "vinai_phowhisper-large__lsvsc"
   exp_variant: "wo_ft"
   exp_notes: "data preprocess: filter outaudio, labels with length exceed; donot preprocess text for training"
-  seed: 202502
+  seed: 202508
   task_name: 'vi_asr'
   dataset_name: 
-  # model_name: 'openai/whisper-base'
   model_name: 'vinai/phowhisper-large'
   phase_name: 'eval'
   print_cfg: true
@@ -25,9 +24,7 @@ exp_manager:
 data:
   is_prepared: true 
   raw_data_dir: "/mnt/data-vol/LSVSC/raw"
-  # raw_data_dir: "data/ViMD/raw"
   common_processed_data_dir: "/mnt/data-vol/LSVSC/processed"
-  # common_processed_data_dir: "data/ViMD/processed"
   exps_data_dir: "/mnt/data-vol/LSVSC/exps"
   streaming: false
   columns_to_retain: ["sample_id", "audio", "text", "filename"]
@@ -78,7 +75,6 @@ train:
     eval_metrics: ['wer']
 
     train_args:
-      # _target_: transformers.TrainingArguments
       _target_: transformers.Seq2SeqTrainingArguments
       resume_from_checkpoint: 
       do_train: true
