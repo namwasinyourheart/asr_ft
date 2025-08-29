@@ -353,7 +353,7 @@ def main():
     # Load dataset
     dataset, id2meta = prepare_data(exp_args, data_args, model_args, device_args)
 
-    train_ds, val_ds, test_ds = dataset['train'], dataset['valid'], dataset['test']
+    train_ds, val_ds, test_ds = dataset['train'], dataset['val'], dataset['test']
 
     if train_args.train_n_samples:
         train_ds = get_data_subset(train_args.train_n_samples, train_ds, exp_args.seed)
