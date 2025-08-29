@@ -199,14 +199,16 @@ def summarize_metric(metric_by_group: dict,
                      ):
     row = {"Model": model_name}
     
-    # dialect
+    # Dialect
     for k, v in metric_by_group["dialect"].items():
         row[f"Dialect_{k}"] = v
     
     # Gender
-    gender_map = {1: "Male", 0: "Female"}
-    for k, v in metric_by_group["gender"].items():
-        row[f"Gender_{gender_map[k]}"] = v
+
+    gender_map = {1: "Male", 0: "Female", "male": "Male", "female": "Female"}
+    for k, v in metric_by_group.get("gender", {}).items():
+        row[f"Gender_{gender_map.get(k, str(k))}"] = v
+
     
     # Province: Get top-n that having highest WER
     top_provinces = sorted(metric_by_group["province_name"].items(), key=lambda x: -x[1])[:top_n_province]
