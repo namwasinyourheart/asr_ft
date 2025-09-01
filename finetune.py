@@ -1,7 +1,6 @@
 import os
-import joblib
-import argparse
-from functools import partial
+import sys
+import signal 
 
 import json
 
@@ -9,7 +8,6 @@ import warnings
 
 import pandas as pd
 import numpy as np
-from datasets import load_dataset, Dataset, DatasetDict
 from torch.utils.data import DataLoader
 
 from hydra import initialize, compose
@@ -263,6 +261,27 @@ def finetune(
         tokenizer=processor.feature_extractor,
         data_collator=data_collator,
     )
+
+
+    def handle_exit(signum, frame):
+        step = trainer.state.global_step
+        ckpt_dir = os.path.join(training_args.output_dir, f"checkpoint-{step}")
+        print(f"\nReceived termination signal ({signum}). Saving checkpoint to {ckpt_dir} ...")
+    
+        trainer.save_model(ckpt_dir)
+        trainer.state.save_to_json(os.path.join(ckpt_dir, "trainer_state.json"))
+    
+        # Save optimizer/scheduler state
+        torch.save(trainer.optimizer.state_dict(), os.path.join(ckpt_dir, "optimizer.pt"))
+        torch.save(trainer.lr_scheduler.state_dict(), os.path.join(ckpt_dir, "scheduler.pt"))
+        # torch.save(trainer._rng_state, os.path.join(ckpt_dir, "rng_state.pth"))
+    
+        print(f"Checkpoint saved at {ckpt_dir}. Exiting now.")
+        sys.exit(0)
+    
+
+    signal.signal(signal.SIGINT, handle_exit)
+    signal.signal(signal.SIGTERM, handle_exit)
 
     model.config.use_cache = False
 
