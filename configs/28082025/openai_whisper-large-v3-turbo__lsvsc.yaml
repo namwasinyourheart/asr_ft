@@ -23,6 +23,7 @@ exp_manager:
 
 data:
   is_prepared: true 
+  prepared_data_dir: 
   raw_data_dir: "/mnt/data-vol/LSVSC/raw"
   common_processed_data_dir: "/mnt/data-vol/LSVSC/processed"
   exps_data_dir: "/mnt/data-vol/LSVSC/exps"

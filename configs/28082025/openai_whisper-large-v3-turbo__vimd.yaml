@@ -23,6 +23,7 @@ exp_manager:
 
 data:
   is_prepared: true 
+  prepared_data_dir: 
   raw_data_dir: "/mnt/data-vol/ViMD/raw"
   common_processed_data_dir: "/mnt/data-vol/ViMD/processed"
   exps_data_dir: "/mnt/data-vol/ViMD/exps"
