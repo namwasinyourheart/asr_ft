@@ -92,6 +92,9 @@ def summarize_results(exps_dir="exps/", output_csv="results_summary.csv"):
     #     print(markdown_table)
 
     return df_results
+
+if __name__ == "__main__":
+    summarize_results(exps_dir="exps", output_csv="results_summary.csv")
                 
 # Example Usage
 # df_results = summarize_results(exps_dir="exps", output_csv="results_summary.csv")
