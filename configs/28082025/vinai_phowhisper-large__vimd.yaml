@@ -24,13 +24,11 @@ exp_manager:
 data:
   is_prepared: true 
   prepared_data_dir: 
-  raw_data_dir: "/mnt/data-vol/ViMD/raw"
-  common_processed_data_dir: "/mnt/data-vol/ViMD/processed"
-  exps_data_dir: "/mnt/data-vol/ViMD/exps"
+  root_data_dir: "/mnt/data-vol/vnpost-asr/ViMD"
   streaming: false
   columns_to_retain: ["sample_id", "audio", "text", "filename"]
+  subset_ratio: 1
   # do_split: true
-  # subset_ratio: 1
   # val_ratio: 0.25
   # test_ratio: 0.2
   do_save: true
