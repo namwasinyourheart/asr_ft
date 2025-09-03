@@ -63,17 +63,8 @@ def load_cfg(config_path, override_args=None):
     except Exception as e:
         raise RuntimeError(f"Failed to load configuration from {config_path}: {e}")
     
-    # assert os.path.basename(config_path).replace('.yaml', '') == cfg.exp_manager.exp_name, \
-    # assert cfg.exp_manager.phase_name + '__' + 
-    # assert cfg.exp_manager.exp_name == os.path.basename(config_path).replace('.yaml', ''), \
-    # f"Config file name '{os.path.basename(config_path)}' does not match experiment name '{cfg.exp_manager.exp_name}' in the config."
-
-    # cfg.train.lora.task_type = cfg.train.progress_callback.model_type = cfg.model.model_type
-    
     exp_args = cfg.exp_manager
     data_args = cfg.data
-    # tokenizer_args = cfg.tokenizer
-    # prompt_args = cfg.prompt
     model_args = cfg.model
     train_args = cfg.train
     eval_args = cfg.evaluate
@@ -196,12 +187,6 @@ def compute_features_and_labels_wrapper(processor):
         return example
 
     return compute_features_and_labels
-
-
-# def add_sample_id(ex, idx):
-#     ex["sample_id"] = idx
-#     return ex
-
     
 def prepare_data(exp_args, data_args, model_args, device_args):
 
@@ -322,10 +307,10 @@ def prepare_data(exp_args, data_args, model_args, device_args):
 
 
         dataset.save_to_disk(prepared_data_dir)
+
+        prepared_dataset = dataset
         
     else:
-        print(f'Loading prepared data from {prepared_data_dir}...')
-        dataset = load_from_disk(prepared_data_dir)
 
         os.makedirs(common_processed_data_dir, exist_ok=True)
         
@@ -333,6 +318,28 @@ def prepare_data(exp_args, data_args, model_args, device_args):
         print("Getting sid2meta...")
 
         all_sid2meta_path = os.path.join(common_processed_data_dir, "all_sid2meta.json")
+
+        dataset = load_from_disk(raw_data_dir)
+
+        if data_args.subset_ratio and 0 < data_args.subset_ratio < 1:
+            print(f"Getting data subset with ratio {data_args.subset_ratio}...")
+            from datasets import DatasetDict
+            dataset = DatasetDict({
+                split: dataset[split].shuffle(seed=exp_args.seed).select(range(int(data_args.subset_ratio * len(dataset[split]))))
+                for split in dataset.keys()
+            })
+        
+        dataset = dataset.cast_column("audio", Audio(sampling_rate=16000)) 
+    
+        dataset = unify_colnames(dataset)
+
+        dataset = unify_splitnames(dataset)
+
+        dataset = add_sample_id(dataset)
+    
+        dataset = add_column_filename(dataset)
+
+        os.makedirs(common_processed_data_dir, exist_ok=True)
     
         if not os.path.exists(all_sid2meta_path):
             all_sid2meta = get_sid2meta(dataset)
@@ -356,18 +363,20 @@ def prepare_data(exp_args, data_args, model_args, device_args):
         else:
             print(f"{all_filename2sid_path} already exists, skipping creation.")
             all_filename2sid = load_dict_from_json(all_filename2sid_path)
-
+        
+        print(f'Loading prepared data from {prepared_data_dir}...')
+        prepared_dataset = load_from_disk(prepared_data_dir)
         
     
     if data_args.do_show:
         # Show dataset examples
-        show_ds_examples(dataset)
+        show_ds_examples(prepared_dataset)
 
     # if data_args.do_save:
     #     # Lưu dataset
     #     dataset.save_to_disk(prepared_data_dir)
 
-    return dataset, all_sid2meta
+    return prepared_dataset, all_sid2meta
 
 def show_ds_examples(ds_dict, num_examples=3, show_audio_array=False, audio_preview_len=10):
     """
