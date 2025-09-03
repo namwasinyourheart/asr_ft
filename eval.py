@@ -210,10 +210,11 @@ def summarize_metric(metric_by_group: dict,
 
     
     # Province: Get top-n that having highest WER
-    top_provinces = sorted(metric_by_group["province_name"].items(), key=lambda x: -x[1])[:top_n_province]
-    for prov, val in top_provinces:
+    for prov, val in sorted(
+        metric_by_group.get("province_name", {}).items(),
+        key=lambda x: -x[1]
+    )[:top_n_province]:
         row[f"Province_{prov}"] = val
-
 
     df = pd.DataFrame([row])
     df.to_csv(filename, index=False)
