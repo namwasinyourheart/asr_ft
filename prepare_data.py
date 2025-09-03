@@ -324,6 +324,9 @@ def prepare_data(exp_args, data_args, model_args, device_args):
         dataset.save_to_disk(prepared_data_dir)
         
     else:
+        print(f'Loading prepared data from {prepared_data_dir}...')
+        dataset = load_from_disk(prepared_data_dir)
+
         os.makedirs(common_processed_data_dir, exist_ok=True)
         
          # Get id2meta
@@ -354,9 +357,7 @@ def prepare_data(exp_args, data_args, model_args, device_args):
             print(f"{all_filename2sid_path} already exists, skipping creation.")
             all_filename2sid = load_dict_from_json(all_filename2sid_path)
 
-
-        print(f'Loading prepared data from {prepared_data_dir}...')
-        dataset = load_from_disk(prepared_data_dir)
+        
     
     if data_args.do_show:
         # Show dataset examples
