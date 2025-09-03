@@ -106,6 +106,33 @@ def preprocess_text(text):
     return text
 
 
+def normalize_text(example):
+    text = example["text"]  
+    text = unicodedata.normalize("NFKC", text)  # apply NFKC
+    text = text.lower()  # convert to lowercase
+    text = text.replace("-", " ")  # remove hyphen
+    text = re.sub("[{}]".format(string.punctuation), "", text)  # remove punctuation
+
+    # example["text"] = text
+    return {"text": text}
+    
+import unicodedata, re, string
+
+def batch_normalize_text(batch):
+    texts = []
+    for t in batch["text"]:
+        if t is None:
+            texts.append(t)
+            continue
+        t = unicodedata.normalize("NFKC", t)  
+        t = t.lower()                         
+        t = t.replace("-", " ")             
+        t = re.sub(f"[{re.escape(string.punctuation)}]", "", t) 
+        texts.append(t)
+    return {"text": texts}
+    # return batch
+
+
 def filter_inputs(input_length):
 	"""Filter inputs with zero input length or longer than 30s"""
 	return 0 < input_length < 48e4  # 30s × 16kHz
@@ -114,19 +141,59 @@ def filter_labels(labels_length):
 	"""Filter label sequences longer than max length 448 tokens"""
 	return labels_length < 448  # MODEL.config.max_length
 
+
+def batch_compute_features_and_labels_wrapper(processor):
+    def batch_compute_features_and_labels(batch):
+        input_lengths = []
+        input_features = []
+        labels = []
+        labels_length = []
+        filenames = []
+        sample_ids = []
+
+        for audio, text, fname, sid in zip(batch["audio"], batch["text"], batch["filename"], batch["sample_id"]):
+            arr = audio["array"]
+            sr = audio["sampling_rate"]
+
+            input_lengths.append(len(arr))
+            input_features.append(
+                processor.feature_extractor(arr, sampling_rate=sr).input_features[0]
+            )
+
+            lbl = processor.tokenizer(text).input_ids
+            labels.append(lbl)
+            labels_length.append(len(lbl))
+
+            filenames.append(fname)
+            sample_ids.append(sid)
+
+        return {
+            "sample_id": sample_ids,
+            "filename": filenames,
+            "input_length": input_lengths,
+            "input_features": input_features,
+            "labels_length": labels_length,
+            "labels": labels,
+        }
+
+    return batch_compute_features_and_labels
+
+
 def compute_features_and_labels_wrapper(processor):
-    def compute_features_and_labels(batch):
-        audio = batch['audio']
+    def compute_features_and_labels(example):
+        audio = example['audio']
         batch["input_length"] = len(audio["array"])
-        batch["input_features"] = processor.feature_extractor(audio["array"], sampling_rate=audio["sampling_rate"]).input_features[0]
+        batch["input_features"] = processor.feature_extractor(
+            audio["array"], 
+            sampling_rate=audio["sampling_rate"]).input_features[0]
 
-        batch["labels"] = processor.tokenizer(batch["text"]).input_ids
-        batch["labels_length"] = len(batch["labels"]) 
+        example["labels"] = processor.tokenizer(example["text"]).input_ids
+        example["labels_length"] = len(example["labels"]) 
 
-        batch["filename"] = batch["filename"]
-        batch["sample_id"] = batch["sample_id"]
+        example["filename"] = example["filename"]
+        example["sample_id"] = example["sample_id"]
         
-        return batch
+        return example
 
     return compute_features_and_labels
 
@@ -194,8 +261,12 @@ def prepare_data(exp_args, data_args, model_args, device_args):
     # prepared_data_dir = os.path.join(exp_variant_data_dir, 
     #                                  data_args.prepared_data_dirname)
 
-    prepared_data_dirname = exp_args.exp_name + '__' + exp_args.exp_variant
-    prepared_data_dir = os.path.join(data_args.exps_data_dir, prepared_data_dirname)
+    if not data_args.prepared_data_dir:
+        prepared_data_dirname = exp_args.exp_name + '__' + exp_args.exp_variant
+        prepared_data_dir = os.path.join(data_args.exps_data_dir, prepared_data_dirname)
+
+    else:
+        prepared_data_dir = data_args.prepared_data_dir
 
     print("prepared_data_dir:", prepared_data_dir)
 
@@ -206,6 +277,17 @@ def prepare_data(exp_args, data_args, model_args, device_args):
         #                        streaming=data_args.streaming)
     
         dataset = load_from_disk(data_args.raw_data_dir)
+
+        if data_args.subset_ratio and 0 < data_args.subset_ratio < 1:
+            print(f"Getting data subset with ratio {data_args.subset_ratio}...")
+            from datasets import DatasetDict
+            dataset = DatasetDict({
+                split: dataset[split].shuffle(seed=exp_args.seed).select(range(int(data_args.subset_ratio * len(dataset[split]))))
+                for split in dataset.keys()
+            })
+
+
+        
         dataset = dataset.cast_column("audio", Audio(sampling_rate=16000)) 
     
         dataset = unify_colnames(dataset)
@@ -247,27 +329,35 @@ def prepare_data(exp_args, data_args, model_args, device_args):
         else:
             print(f"{all_filename2sid_path} already exists, skipping creation.")
             all_filename2sid = load_dict_from_json(all_filename2sid_path)
-            
-    # exp_variant_data_dir = os.path.join(exp_args.exps_dir, 
-    #                                     exp_args.exp_name, 
-    #                                     exp_args.exp_variant, 
-    #                                     "data")    
-    # prepared_data_dir = os.path.join(exp_variant_data_dir, 
-    #                                  data_args.prepared_data_dirname)
-    # if not os.path.exists(prepared_data_dir):
 
-        print("Computing features and labels ...")
-    
         columns_to_retain = ["sample_id", "filename", "input_features", "labels"]
         columns_to_remove = [col for col in list(next(iter(dataset['test'])).keys()) if col not in columns_to_retain]
-        
-        compute_features_and_labels = compute_features_and_labels_wrapper(processor)
-        
-        dataset = dataset.map(compute_features_and_labels, 
-                              remove_columns=columns_to_remove,
-                              batched=False
-                              )
 
+        # Normalizing text/transcription
+        # print("Normalizing text...")
+
+        # dataset = dataset['test']
+
+        dataset = dataset.map(
+            batch_normalize_text, 
+            batched=True,
+            batch_size=256,
+            # remove_columns=columns_to_remove,
+            desc="Normalizing text...")
+
+
+        # Computing features and labels
+        # print("Computing features and labels ...")
+                
+        batch_compute_features_and_labels = batch_compute_features_and_labels_wrapper(processor)
+        
+        dataset = dataset.map(batch_compute_features_and_labels, 
+                              remove_columns=columns_to_remove,
+                              batched=True,
+                              batch_size=1000,
+                              desc="Computing features and labels"
+                              )
+        # Filter inputs and labels by lengh
         dataset = (dataset
             .filter(filter_inputs, input_columns= ["input_length"])  # no `remove_columns` coz streaming
         	.filter(filter_labels, input_columns=["labels_length"])
@@ -283,6 +373,8 @@ def prepare_data(exp_args, data_args, model_args, device_args):
         all_sid2meta_path = os.path.join(common_processed_data_dir, "all_sid2meta.json")
         
         all_sid2meta = load_dict_from_json(all_sid2meta_path)
+
+        print(f'Loading prepared data from {prepared_data_dir}...')
         dataset = load_from_disk(prepared_data_dir)
     
     if data_args.do_show:
