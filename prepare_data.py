@@ -202,45 +202,6 @@ def compute_features_and_labels_wrapper(processor):
 #     ex["sample_id"] = idx
 #     return ex
 
-
-def get_sid2meta(dataset, 
-                fields=("filename", "region","province_name","gender"), 
-                splits=None):
-    """
-    Build id2meta dictionary from dataset.
-    
-    Args:
-        dataset: DatasetDict
-        fields: tuple of field names to include in metadata
-        splits: list of splits to process (None = all splits)
-    
-    Returns:
-        dict: {sample_id: {field: value, ...}, ...}
-    """
-    splits = splits or dataset.keys()
-    return {
-        ex["sample_id"]: {field: ex.get(field, "") for field in fields} 
-        for split in tqdm(splits)
-        for ex in tqdm(dataset[split])
-    }
-
-
-def get_filename2sid(id2meta: dict) -> dict:
-    """
-    Tạo dict mapping: filename -> sample_id từ id2meta dict, có tqdm hiển thị tiến trình
-    
-    Args:
-        id2meta (dict): dict như test_id2meta.json đã load
-    
-    Returns:
-        dict: mapping filename -> sample_id
-    """
-    filename2sid = {}
-    for k, v in tqdm(id2meta.items(), desc="Building filename -> sample_id map"):
-        filename2sid[v['filename']] = k
-    return filename2sid
-
-
     
 def prepare_data(exp_args, data_args, model_args, device_args):
 
@@ -252,15 +213,6 @@ def prepare_data(exp_args, data_args, model_args, device_args):
         add_sample_id,
         add_column_filename
     )
-
-
-    # exp_variant_data_dir = os.path.join(exp_args.exps_dir, 
-    #                                     exp_args.exp_name, 
-    #                                     exp_args.exp_variant, 
-    #                                     "data")    
-    # prepared_data_dir = os.path.join(exp_variant_data_dir, 
-    #                                  data_args.prepared_data_dirname)
-
 
     root_data_dir = data_args.root_data_dir  
 
@@ -304,7 +256,6 @@ def prepare_data(exp_args, data_args, model_args, device_args):
 
         dataset = add_sample_id(dataset)
     
-        
         dataset = add_column_filename(dataset)
 
         os.makedirs(common_processed_data_dir, exist_ok=True)

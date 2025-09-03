@@ -148,6 +148,28 @@ def add_column_filename(dataset, col_audio="audio", col_name="filename"):
         new_splits[split] = dataset[split].add_column(col_name, filenames)
     return DatasetDict(new_splits)
 
+# def get_sid2meta(dataset, 
+#                  fields=("filename", "dialect", "province_name", "gender"), 
+#                  splits=None):
+#     """
+#     Build id2meta dictionary from dataset, grouped by split.
+
+#     Returns:
+#         dict: {split: {sample_id: {field: value, ...}}}
+#     """
+#     splits = splits or dataset.keys()
+#     sid2meta = {}
+
+#     for split in splits:
+#         split_meta = {}
+#         for ex in tqdm(dataset[split], desc=f"Processing {split}"):
+#             meta = {field: ex.get(field, "") for field in fields}
+#             split_meta[ex["sample_id"]] = meta
+#         sid2meta[split] = split_meta
+
+#     return sid2meta
+
+
 def get_sid2meta(dataset, 
                  fields=("filename", "dialect", "province_name", "gender"), 
                  splits=None):
@@ -158,16 +180,25 @@ def get_sid2meta(dataset,
         dict: {split: {sample_id: {field: value, ...}}}
     """
     splits = splits or dataset.keys()
-    sid2meta = {}
 
+    # chỉ giữ lại các field thực sự có trong dataset
+    dataset_fields = set(dataset[splits[0]].column_names)
+    valid_fields = [f for f in fields if f in dataset_fields]
+
+    missing_fields = set(fields) - dataset_fields
+    if missing_fields:
+        print(f"These fields are missing in dataset and will be ignored: {missing_fields}")
+
+    sid2meta = {}
     for split in splits:
         split_meta = {}
         for ex in tqdm(dataset[split], desc=f"Processing {split}"):
-            meta = {field: ex.get(field, "") for field in fields}
+            meta = {field: ex[field] for field in valid_fields}
             split_meta[ex["sample_id"]] = meta
         sid2meta[split] = split_meta
 
     return sid2meta
+
 
 def get_filename2sid(dataset, filename_colname="filename", sid_colname="sample_id", splits=None):
     """
