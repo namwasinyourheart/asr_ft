@@ -326,9 +326,34 @@ def prepare_data(exp_args, data_args, model_args, device_args):
     else:
         os.makedirs(common_processed_data_dir, exist_ok=True)
         
+         # Get id2meta
+        print("Getting sid2meta...")
+
         all_sid2meta_path = os.path.join(common_processed_data_dir, "all_sid2meta.json")
+    
+        if not os.path.exists(all_sid2meta_path):
+            all_sid2meta = get_sid2meta(dataset)
+            print(f"Saving all_id2meta to {all_sid2meta_path}")
+            save_dict_to_json(all_sid2meta, all_sid2meta_path)
+        else:
+            print(f"{all_sid2meta_path} already exists, skipping creation.")
+            all_sid2meta = load_dict_from_json(all_sid2meta_path)
+
         
-        all_sid2meta = load_dict_from_json(all_sid2meta_path)
+        # Get filename2sid
+        print("Getting filename2sid...")
+        
+        all_filename2sid_path = os.path.join(common_processed_data_dir, "all_filename2sid.json")
+
+        if not os.path.exists(all_filename2sid_path):
+            all_filename2sid = get_filename2sid(dataset)
+            print(f"Saving all_filename2sid to {all_filename2sid_path}")
+            save_dict_to_json(all_filename2sid, all_filename2sid_path)
+        
+        else:
+            print(f"{all_filename2sid_path} already exists, skipping creation.")
+            all_filename2sid = load_dict_from_json(all_filename2sid_path)
+
 
         print(f'Loading prepared data from {prepared_data_dir}...')
         dataset = load_from_disk(prepared_data_dir)
