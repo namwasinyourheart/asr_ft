@@ -261,9 +261,17 @@ def prepare_data(exp_args, data_args, model_args, device_args):
     # prepared_data_dir = os.path.join(exp_variant_data_dir, 
     #                                  data_args.prepared_data_dirname)
 
+
+    root_data_dir = data_args.root_data_dir  
+
+    # Path form root_data_dir
+    raw_data_dir = os.path.join(root_data_dir, "raw")
+    common_processed_data_dir = os.path.join(root_data_dir, "processed")
+    exps_data_dir = os.path.join(root_data_dir, "exps")
+
     if not data_args.prepared_data_dir:
         prepared_data_dirname = exp_args.exp_name + '__' + exp_args.exp_variant
-        prepared_data_dir = os.path.join(data_args.exps_data_dir, prepared_data_dirname)
+        prepared_data_dir = os.path.join(exps_data_dir, prepared_data_dirname)
 
     else:
         prepared_data_dir = data_args.prepared_data_dir
@@ -276,7 +284,7 @@ def prepare_data(exp_args, data_args, model_args, device_args):
         # dataset = load_dataset(data_args.raw_data_dir, 
         #                        streaming=data_args.streaming)
     
-        dataset = load_from_disk(data_args.raw_data_dir)
+        dataset = load_from_disk(raw_data_dir)
 
         if data_args.subset_ratio and 0 < data_args.subset_ratio < 1:
             print(f"Getting data subset with ratio {data_args.subset_ratio}...")
@@ -299,8 +307,6 @@ def prepare_data(exp_args, data_args, model_args, device_args):
         
         dataset = add_column_filename(dataset)
 
-
-        common_processed_data_dir = data_args.common_processed_data_dir
         os.makedirs(common_processed_data_dir, exist_ok=True)
         
         all_sid2meta_path = os.path.join(common_processed_data_dir, "all_sid2meta.json")
@@ -367,7 +373,6 @@ def prepare_data(exp_args, data_args, model_args, device_args):
         dataset.save_to_disk(prepared_data_dir)
         
     else:
-        common_processed_data_dir = data_args.common_processed_data_dir
         os.makedirs(common_processed_data_dir, exist_ok=True)
         
         all_sid2meta_path = os.path.join(common_processed_data_dir, "all_sid2meta.json")
