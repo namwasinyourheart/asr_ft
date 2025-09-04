@@ -306,6 +306,7 @@ def prepare_data(exp_args, data_args, model_args, device_args):
         )
 
 
+        print(f"Saving prepared dataset to disk...{prepared_data_dir}")
         dataset.save_to_disk(prepared_data_dir)
 
         prepared_dataset = dataset

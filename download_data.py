@@ -2,14 +2,22 @@ import argparse
 from datasets import load_dataset
 from tqdm.auto import tqdm
 import os
+from huggingface_hub import login
+
+from dotenv import load_dotenv
+load_dotenv()
+
+login(token=os.environ['HUGGINGFACEHUB_API_TOKEN'])
 
 dataset_id_list = [
-    "nguyendv02/ViMD_Dataset",
-    "doof-ferb/LSVSC",
+    # "nguyendv02/ViMD_Dataset",
+    # "doof-ferb/LSVSC",
+    "linhtran92/viet_bud500"
 ]
 raw_data_dir_list = [
-    "ViMD/raw",
-    "LSVSC/raw",
+    # "ViMD/raw",
+    # "LSVSC/raw",
+    "VietBud500/raw"
 ]
 
 parser = argparse.ArgumentParser()

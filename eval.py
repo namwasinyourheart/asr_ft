@@ -456,7 +456,7 @@ def main():
                     )
     # Compute WER
     # print("Micro WER:", micro_wer)
-    print("Metrics WER:", 100 * metrics_wer["micro_wer"])
+    print("Micro WER:", 100 * metrics_wer["micro_wer"])
 
     wer_by_group = {}
 
