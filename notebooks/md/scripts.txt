@@ -1,0 +1,13 @@
+
+!python prepare_data.py \
+    --config_path=configs/28082025/vinai_pho_whisper-large__lsvsc.yaml \
+    
+    
+!python eval.py \
+    --config_path=configs/28082025/vinai_pho_whisper-large__lsvsc.yaml \
+    evaluate.break_step=1 \
+    evaluate.batch_size=1
+
+
+
+
