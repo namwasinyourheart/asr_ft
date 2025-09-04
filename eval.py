@@ -220,7 +220,91 @@ def summarize_metric(metric_by_group: dict,
     df.to_csv(filename, index=False)
     
     return df
+import numpy as np
 
+
+def calculate_wer_per_sample(ref, hyp):
+        r = ref.split()
+        h = hyp.split()
+        d = np.zeros((len(r)+1, len(h)+1), dtype=np.uint8)
+
+        for i in range(len(r)+1):
+            d[i][0] = i
+        for j in range(len(h)+1):
+            d[0][j] = j
+
+        for i in range(1, len(r)+1):
+            for j in range(1, len(h)+1):
+                if r[i-1] == h[j-1]:
+                    d[i][j] = d[i-1][j-1]
+                else:
+                    substitute = d[i-1][j-1] + 1
+                    insert    = d[i][j-1] + 1
+                    delete    = d[i-1][j] + 1
+                    d[i][j] = min(substitute, insert, delete)
+
+        i, j = len(r), len(h)
+        S = D = I = 0
+        while i > 0 or j > 0:
+            if i > 0 and j > 0 and d[i][j] == d[i-1][j-1] and r[i-1] == h[j-1]:
+                i -= 1
+                j -= 1
+            elif i > 0 and j > 0 and d[i][j] == d[i-1][j-1] + 1:
+                S += 1
+                i -= 1
+                j -= 1
+            elif j > 0 and d[i][j] == d[i][j-1] + 1:
+                I += 1
+                j -= 1
+            else:
+                D += 1
+                i -= 1
+
+        N = max(1, len(r))
+        wer_value = (S + D + I) / N
+        return wer_value, S, D, I, N
+
+def calculate_wer(refs, hyps, return_details=False):
+
+    total_S = total_D = total_I = total_N = 0
+    wer_list = []
+    details = []
+
+    for ref, hyp in zip(refs, hyps):
+        wer_val, S, D, I, N = calculate_wer_per_sample(ref, hyp)
+        total_S += S
+        total_D += D
+        total_I += I
+        total_N += N
+        wer_list.append(wer_val)
+
+        if return_details:
+            details.append({
+                "ref": ref,
+                "hyp": hyp,
+                "wer": wer_val,
+                "S": S,
+                "D": D,
+                "I": I,
+                "N": N,
+            })
+
+    micro_wer = (total_S + total_D + total_I) / total_N
+    macro_wer = float(np.mean(wer_list)) if wer_list else 0.0
+
+    summary = {
+        "micro_wer": micro_wer,
+        "macro_wer": macro_wer,
+        "S": total_S,
+        "D": total_D,
+        "I": total_I,
+        "N": total_N,
+        "n_samples": len(refs),
+    }
+    if return_details:
+        return summary, details
+    else:
+        return summary
 
 def main():
     setup_environment()
@@ -281,9 +365,9 @@ def main():
                                  batch_size=eval_args.batch_size, 
                                  collate_fn=data_collator
                                 )
-    wer_metric = load("wer")
+    # wer_metric = load("wer")
     predictions_list = []
-    
+    all_preds, all_refs = [], []
     
     grouped_preds = {
         "dialect": defaultdict(list),
@@ -319,19 +403,37 @@ def main():
             decoded_preds = tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)
             decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
 
-            predictions = [preprocess_text(decoded_pred) for decoded_pred in decoded_preds]
-            ground_truth = [preprocess_text(gt) for gt in decoded_labels]
+            predictions = [preprocess_text(p) for p in decoded_preds]
+            ground_truth = [preprocess_text(g) for g in decoded_labels]
 
-            wer_metric.add_batch(predictions=decoded_preds, 
-                                 references=decoded_labels)
 
-            for sid, fn, pred, label in zip(batch["sample_id"], batch["filename"], predictions, ground_truth):
+            # wer_metric.add_batch(predictions=predictions, 
+            #                      references=ground_truth)
+
+            all_preds.extend(predictions)
+            all_refs.extend(ground_truth)
+
+            for i, sid in enumerate(batch["sample_id"]):
+                # fn = batch["filename"][i]
+                pred = predictions[i]
+                label = ground_truth[i]
+                meta = all_sid2meta['test'][str(sid)]
+                sample_wer, S, D, I, N = calculate_wer_per_sample(label, pred)
+
+                 # Append prediction info
                 predictions_list.append({
                     "sid": sid,
-                    "filename": fn,
+                    # "filename": fn,
+                    "meta": meta,
                     "prediction": pred,
                     "label": label,
+                    "wer": sample_wer,
+                    "S": S,
+                    "D": D,
+                    "I": I,
+                    "N": N
                 })
+            
     
             for i, sid in enumerate(batch["sample_id"]):
                 meta = all_sid2meta['test'][str(sid)]
@@ -343,29 +445,18 @@ def main():
                     grouped_preds[key][meta[key]].append(decoded_preds[i])
                     grouped_labels[key][meta[key]].append(decoded_labels[i])
     
+    # Calculate WER
+    # micro_wer = wer_metric.compute()
+    metrics_wer = calculate_wer(all_refs, all_preds, return_details=False)
+            
     # Save predictions
     save_predictions(predictions_list, 
                      exp_variant_results_dir, 
                      eval_args.prediction_filename,
                     )
     # Compute WER
-    wer= 100 * wer_metric.compute()
-    print("Overall WER:", wer)
-
-    
-    # Compute WER by group: dialect, province_name, gender 
-    # wer_by_group = {}
-    
-    # for meta_key in grouped_preds.keys():
-    #     wer_by_group[meta_key] = {}
-    #     for group_value in grouped_preds[meta_key]:
-
-    #         metric_tmp = load("wer")
-    #         metric_tmp.add_batch(
-    #             predictions=grouped_preds[meta_key][group_value],
-    #             references=grouped_labels[meta_key][group_value],
-    #         )
-    #         wer_by_group[meta_key][group_value] = 100 * metric_tmp.compute()
+    # print("Micro WER:", micro_wer)
+    print("Metrics WER:", 100 * metrics_wer["micro_wer"])
 
     wer_by_group = {}
 
@@ -384,15 +475,20 @@ def main():
             wer_by_group.pop(meta_key)
 
 
-
     print("WER by Group:", wer_by_group)
 
     # Save metrics
     metrics = {
         "exp_name": exp_args.exp_name,
         "exp_variant": exp_args.exp_variant,
-        "wer": wer,
-        "wer_by_group": wer_by_group
+        "micro_wer": metrics_wer["micro_wer"],
+        "macro_wer": metrics_wer["macro_wer"],
+        "S": metrics_wer["S"],
+        "D": metrics_wer["D"],
+        "I": metrics_wer["I"],
+        "N": metrics_wer["N"],
+        "wer_by_group": wer_by_group,
+        "n_samples": metrics_wer["n_samples"],
     }
 
     save_metrics(metrics, 
