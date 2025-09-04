@@ -81,7 +81,8 @@ train:
       do_eval: true
       do_predict: false
       learning_rate: 1e-6
-      warmup_steps: 500
+      # warmup_steps: 500
+      warmup_ratio: 0.1
       num_train_epochs: 1
       # max_steps: 1
       per_device_train_batch_size: 128
@@ -101,17 +102,19 @@ train:
       remove_unused_columns: false
 
 generate:
-  max_new_tokens: 256
-  pad_token_id: null
-  skip_special_tokens: True
-  temperature:
-  do_sample:
+  max_new_tokens: 448
+  num_beams: 1
+  condition_on_prev_tokens: False
+  compression_ratio_threshold: 1.35 
+  temperature: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+  logprob_threshold: -1.0
+  no_speech_threshold: 0.6
+  return_timestamps: True
 
 
 evaluate:
   batch_size: 128
   break_step: -1
-  do_extract_prediction: True
   metric_filename: 'test_metrics.txt'
   prediction_filename: 'test_predictions.txt'
   result_filename: 'test_result.txt'
