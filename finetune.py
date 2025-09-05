@@ -66,25 +66,7 @@ class DataCollatorSpeechSeq2SeqWithPadding:
 
         batch["labels"] = labels
 
-        # print("type(features): ", type(features))
-        # print("features[0].keys(): ", features[0].keys())
-
-        # batch["filename"] = [f["filename"] for f in features]
-        # batch["sample_id"] = [f["sample_id"] for f in features]
-
-        # return batch
-
-        # giữ riêng extra keys, nhưng không add vào batch trả về cho model
-        # extra = {
-        #     "filename": [f["filename"] for f in features],
-        #     "sample_id": [f["sample_id"] for f in features],
-        # }
-
-        # batch["extra"] = extra   # 👈 giữ trong dict con, Trainer sẽ không pass vào model
         return batch
-
-
-
 
 
 def parse_args():
@@ -123,13 +105,7 @@ def load_cfg(config_path, override_args=None):
             cfg = compose(config_name=config_fn, overrides=override_args)
     except Exception as e:
         raise RuntimeError(f"Failed to load configuration from {config_path}: {e}")
-    
-    # assert os.path.basename(config_path).replace('.yaml', '') == cfg.exp_manager.exp_name, \
-    # assert cfg.exp_manager.phase_name + '__' + 
-    # assert cfg.exp_manager.exp_name == os.path.basename(config_path).replace('.yaml', ''), \
-    # f"Config file name '{os.path.basename(config_path)}' does not match experiment name '{cfg.exp_manager.exp_name}' in the config."
 
-    # cfg.train.lora.task_type = cfg.train.progress_callback.model_type = cfg.model.model_type
     
     exp_args = cfg.exp_manager
     data_args = cfg.data
@@ -182,8 +158,6 @@ def finetune(
         test_ds: The dataset used for testing (if applicable).
         exp_args: Experiment-related arguments and configurations.
         data_args: Parameters related to dataset processing and handling.
-        # tokenizer_args: Arguments for tokenizer configuration.
-        # prompt_args: Configuration for prompt engineering or formatting.
         model_args: Model-specific settings and hyperparameters.
         train_args: Training-related parameters, including optimizer settings.
         eval_args: Evaluation-related configurations and metrics.
@@ -291,6 +265,12 @@ def finetune(
         "run_name": wandb.run.name
     }
 
+    from transformers import EarlyStoppingCallback
+    early_stop_callback = EarlyStoppingCallback(
+        early_stopping_patience=train_args.early_stopping_patience)
+
+    trainer.add_callback(early_stop_callback)
+
     if training_args.do_train:
         if train_args.do_resume_from_checkpoint and training_args.resume_from_checkpoint:
             checkpoint = training_args.resume_from_checkpoint
@@ -324,7 +304,12 @@ def finetune(
 
 
     if training_args.do_predict:
-        pass
+        print("Predicting...")
+        predictions = trainer.predict(test_dataset=test_ds, metric_key_prefix='test',  predict_with_generate=True)
+        metrics = predictions.metrics
+        trainer.log_metrics("test", metrics)
+        trainer.save_metrics("test", metrics)
+        all_metrics.update(metrics)
         
     # Save metrics
     if training_args.do_train or training_args.do_eval or training_args.do_predict:
@@ -382,6 +367,11 @@ def main():
 
     if train_args.test_n_samples:
         test_ds = get_data_subset(train_args.test_n_samples, test_ds, exp_args.seed)
+
+    # Print lengths
+    print(f"Train size: {len(train_ds)}")
+    print(f"Validation size: {len(val_ds)}")
+    print(f"Test size: {len(test_ds)}")
 
 
     # Loading model and processor
