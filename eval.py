@@ -392,7 +392,7 @@ def main():
             generated_tokens = model.generate(
                 input_features=input_features,
                 return_dict_in_generate=True,
-                max_new_tokens=gen_args.max_new_tokens,
+                # max_new_tokens=gen_args.max_new_tokens,
             ).sequences.cpu().numpy()
 
             # print("[DEBUG] generated_tokens.shape:", generated_tokens.shape)
