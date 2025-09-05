@@ -458,19 +458,40 @@ def main():
     # print("Micro WER:", micro_wer)
     print("Micro WER:", 100 * metrics_wer["micro_wer"])
 
+    # wer_by_group = {}
+
+    # for meta_key in grouped_preds.keys():
+    #     wer_by_group[meta_key] = {}
+    #     for group_value, preds in grouped_preds[meta_key].items():
+    #         refs = grouped_labels[meta_key][group_value]
+    #         if len(preds) == 0 or len(refs) == 0:
+    #             continue  # skip empty groups
+    #         metric_tmp = load("wer")
+    #         metric_tmp.add_batch(predictions=preds, references=refs)
+    #         wer_by_group[meta_key][group_value] = 100 * metric_tmp.compute()
+
+    #     # if the whole meta_key is missing → drop it
+    #     if not wer_by_group[meta_key]:
+    #         wer_by_group.pop(meta_key)
+
+
     wer_by_group = {}
 
     for meta_key in grouped_preds.keys():
+        # Skip if no data for this meta_key
+        if all(len(v) == 0 for v in grouped_preds[meta_key].values()):
+            continue
+
         wer_by_group[meta_key] = {}
         for group_value, preds in grouped_preds[meta_key].items():
             refs = grouped_labels[meta_key][group_value]
             if len(preds) == 0 or len(refs) == 0:
-                continue  # skip empty groups
+                continue
             metric_tmp = load("wer")
             metric_tmp.add_batch(predictions=preds, references=refs)
             wer_by_group[meta_key][group_value] = 100 * metric_tmp.compute()
 
-        # if the whole meta_key is missing → drop it
+        # Remove meta_key if it ended up empty
         if not wer_by_group[meta_key]:
             wer_by_group.pop(meta_key)
 
@@ -495,11 +516,23 @@ def main():
                  exp_variant_results_dir, 
                  eval_args.metric_filename)
 
-    summarize_metric(wer_by_group,
-                     model_name=exp_args.exp_name + '_' + exp_args.exp_variant,
-                     top_n_province=10,
-                     filename=os.path.join(exp_variant_results_dir, f"summary_metrics_{exp_args.exp_name}_{exp_args.exp_variant}.csv")
-                     )
+
+    if wer_by_group:
+        summarize_metric(
+            wer_by_group,
+            model_name=exp_args.exp_name + '_' + exp_args.exp_variant,
+            top_n_province=10,
+            filename=os.path.join(exp_variant_results_dir, f"summary_metrics_{exp_args.exp_name}_{exp_args.exp_variant}.csv")
+        )
+    else:
+        print("No group metadata found. Skipping WER-by-group summary.")
+
+
+    # summarize_metric(wer_by_group,
+    #                  model_name=exp_args.exp_name + '_' + exp_args.exp_variant,
+    #                  top_n_province=10,
+    #                  filename=os.path.join(exp_variant_results_dir, f"summary_metrics_{exp_args.exp_name}_{exp_args.exp_variant}.csv")
+    #                  )
     
 if __name__ == "__main__":
     main()
