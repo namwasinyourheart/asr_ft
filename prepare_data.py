@@ -283,7 +283,8 @@ def prepare_data(exp_args, data_args, model_args, device_args):
         dataset = dataset.map(
             batch_normalize_text, 
             batched=True,
-            batch_size=256,
+            batch_size=data_args.batch_size,
+            num_proc=data_args.num_proc,
             # remove_columns=columns_to_remove,
             desc="Normalizing text...")
 
@@ -296,7 +297,8 @@ def prepare_data(exp_args, data_args, model_args, device_args):
         dataset = dataset.map(batch_compute_features_and_labels, 
                               remove_columns=columns_to_remove,
                               batched=True,
-                              batch_size=1000,
+                              batch_size=data_args.batch_size,
+                              num_proc=data_args.num_proc,
                               desc="Computing features and labels"
                               )
         # Filter inputs and labels by lengh
