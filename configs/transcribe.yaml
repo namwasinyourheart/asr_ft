@@ -14,8 +14,8 @@ model:
     attn_implementation: #flash_attention_2
     device_map: auto
     low_cpu_mem_usage: null
-    adapter_path: "/home/nampv1/models/asr/vnpost-1/"
-    # adapter_path: null
+    # adapter_path: "/home/nampv1/models/asr/vnpost-1/"
+    adapter_path: null
 
 input:
     # audio_path: data/examples/example2.wav
