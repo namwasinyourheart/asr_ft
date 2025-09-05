@@ -95,7 +95,7 @@ train:
       eval_accumulation_steps: 1
       eval_on_start: true
       use_cpu: false
-      report_to: None
+      report_to: ["wandb"]
       remove_unused_columns: false
 
 generate:

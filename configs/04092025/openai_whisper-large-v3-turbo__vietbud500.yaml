@@ -36,6 +36,8 @@ data:
   do_save: true
   do_show: false
   prepared_data_dirname: prepared_data
+  num_proc: 8
+  batch_size: 1000
 
 model: 
   model_type: "ASR"
