@@ -19,6 +19,7 @@ exp_manager:
   print_peft_config: true
   print_device: true
   print_training_args: false
+  exp_tracking_tool: "wandb"
   wandb:
     project: vnpost_asr_ft
     log_artifact: false
@@ -28,6 +29,7 @@ data:
   is_prepared: true 
   prepared_data_dir: /mnt/data-vol/vnpost-asr/VietBud500/exps/openai_whisper-large-v3-turbo__vietbud500__label_text_normalized/prepared_data
   root_data_dir: "/mnt/data-vol/vnpost-asr/VietBud500"
+  do_shard_for_feature_computation: true
   streaming: false
   columns_to_retain: ["sample_id", "audio", "text", "filename"]
   subset_ratio: 1
