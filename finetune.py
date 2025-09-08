@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 import sys
 import signal 
 
@@ -326,6 +327,176 @@ def finetune(
     if exp_args.wandb.log_artifact:
         pass
 
+
+from torch.utils.tensorboard import SummaryWriter
+import os, sys, json, signal, torch
+from transformers import Seq2SeqTrainer, EarlyStoppingCallback
+
+def finetune1(
+    model, processor, 
+    train_ds, val_ds, test_ds,
+    exp_args, data_args, 
+    model_args, train_args, eval_args, gen_args, device_args, 
+    exp_variant_dir, exp_variant_data_dir, exp_variant_checkpoints_dir, exp_variant_results_dir
+):
+
+    if train_args.use_peft:
+        model.gradient_checkpointing_enable()
+        if model_args.load_in_4bit or model_args.load_in_8bit:
+            model = prepare_model_for_kbit_training(model)
+
+        peft_config = get_peft_config(train_args)
+        if exp_args.print_peft_config:
+            print(peft_config)
+        model = get_peft_model(model, peft_config)
+
+    if exp_args.print_trainable_parameters:
+        try:
+            model.print_trainable_parameters()
+        except:
+            from src.utils.model_utils import print_trainable_parameters
+            print_trainable_parameters(model)
+
+    if exp_args.print_parameter_datatypes:
+        from src.utils.model_utils import print_parameter_datatypes
+        print_parameter_datatypes(model)
+
+    if exp_args.exp_tracking_tool=="wandb":
+        import wandb
+        # Initialize W&B
+        wandb.init(
+            project=exp_args.wandb.project,
+        )
+        run_name = wandb.run.name
+    else:
+        run_name = f"{exp_args.exp_name}_{exp_args.exp_variant}_{datetime.now().strftime('%d%m%y_%H%M%S')}"
+
+    # Training arguments
+    training_args = instantiate(
+        train_args.train_args, 
+        output_dir=exp_variant_checkpoints_dir, 
+        report_to="wandb" if exp_args.exp_tracking_tool == "wandb" else "tensorboard",
+        logging_dir=os.path.join(exp_variant_dir, "tensorboard_log"),
+        run_name=run_name
+    )
+
+    if exp_args.print_device:
+        print(
+            f"Process Rank: {training_args.local_rank}, Device: {training_args.device}, N_GPU: {training_args.n_gpu}, "
+            f"Distributed Training: {bool(training_args.local_rank != -1)}"
+        )
+
+    data_collator = DataCollatorSpeechSeq2SeqWithPadding(
+        processor=processor,
+        decoder_start_token_id=model.config.decoder_start_token_id,
+    )
+
+    compute_metrics = compute_metrics_wrapper(
+        processor.tokenizer, 
+        train_args.eval_metrics, 
+        model_args.model_type
+    )
+
+    trainer = Seq2SeqTrainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_ds,
+        eval_dataset=val_ds,
+        compute_metrics=compute_metrics,
+        tokenizer=processor.feature_extractor,
+        data_collator=data_collator,
+    )
+
+    # Handle termination (save checkpoint on exit)
+    def handle_exit(signum, frame):
+        step = trainer.state.global_step
+        ckpt_dir = os.path.join(training_args.output_dir, f"checkpoint-{step}")
+        print(f"\nReceived termination signal ({signum}). Saving checkpoint to {ckpt_dir} ...")
+    
+        trainer.save_model(ckpt_dir)
+        trainer.state.save_to_json(os.path.join(ckpt_dir, "trainer_state.json"))
+    
+        torch.save(trainer.optimizer.state_dict(), os.path.join(ckpt_dir, "optimizer.pt"))
+        torch.save(trainer.lr_scheduler.state_dict(), os.path.join(ckpt_dir, "scheduler.pt"))
+    
+        print(f"Checkpoint saved at {ckpt_dir}. Exiting now.")
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, handle_exit)
+    signal.signal(signal.SIGTERM, handle_exit)
+
+    model.config.use_cache = False
+
+    all_metrics = {
+        "exp_name": exp_args.exp_name,
+        "exp_variant": exp_args.exp_variant,
+        "run_name": run_name
+    }
+    
+
+    early_stop_callback = EarlyStoppingCallback(
+        early_stopping_patience=train_args.early_stopping_patience)
+    trainer.add_callback(early_stop_callback)
+
+    # Training
+    if training_args.do_train:
+        if train_args.do_resume_from_checkpoint and training_args.resume_from_checkpoint:
+            checkpoint = training_args.resume_from_checkpoint
+            train_result = trainer.train(resume_from_checkpoint=checkpoint)
+        else:
+            train_result = trainer.train()
+
+        metrics = train_result.metrics
+        trainer.log_metrics("train", metrics)
+        trainer.save_metrics("train", metrics)
+        trainer.save_state()
+        all_metrics.update(metrics)
+
+        if train_args.use_peft:
+            trainer.model.save_pretrained(os.path.join(exp_variant_results_dir, 'adapter'))
+            print(f"Adapter saved to {os.path.join(exp_variant_results_dir, 'adapter')}")
+        else:
+            print("Saving finetuned model and processor...")
+            trainer.model.save_pretrained(os.path.join(exp_variant_results_dir, 'finetuned_model'))
+            processor.save_pretrained(os.path.join(exp_variant_results_dir, 'finetuned_model'))
+            print(f"Finetuned model and processor saved to {os.path.join(exp_variant_results_dir, 'finetuned_model')}")
+
+    # Evaluation
+    if training_args.do_eval:
+        print("Evaluating...")
+        metrics = trainer.evaluate(eval_dataset=val_ds, metric_key_prefix="eval")
+        trainer.log_metrics("eval", metrics)
+        trainer.save_metrics("eval", metrics)
+        all_metrics.update(metrics)
+
+
+    # Prediction
+    if training_args.do_predict:
+        print("Predicting...")
+        predictions = trainer.predict(test_dataset=test_ds, metric_key_prefix='test', predict_with_generate=True)
+        metrics = predictions.metrics
+        trainer.log_metrics("test", metrics)
+        trainer.save_metrics("test", metrics)
+        all_metrics.update(metrics)
+
+
+    # Save metrics JSON
+    if training_args.do_train or training_args.do_eval or training_args.do_predict:
+        all_metrics_fp = os.path.join(exp_variant_results_dir, train_args.train_metric_filename)
+        with open(all_metrics_fp, "w") as fout:
+            fout.write(json.dumps(all_metrics))
+
+    # Merge model if required
+    if train_args.use_peft:
+        if training_args.do_train and train_args.merge_after_train:
+            pass
+
+    # Log experiment artifact
+    if exp_args.wandb.log_artifact:
+        pass
+
+
+
 def main():
     setup_environment()
 
@@ -393,7 +564,7 @@ def main():
     if exp_args.print_processor:
         print(processor)
 
-    finetune(
+    finetune1(
         model, processor, 
         train_ds, val_ds, test_ds,
         exp_args, data_args, 
