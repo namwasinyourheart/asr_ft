@@ -115,38 +115,66 @@ def add_sample_id(dataset, col_name="sample_id"):
 
     return DatasetDict(new_splits)
 
-def add_column_filename(dataset, col_audio="audio", col_name="filename"):
+import os
+from datasets import DatasetDict
+from tqdm import tqdm
+
+def add_column_filename(dataset, col_audio="audio", col_name="filename", prefix=None):
     """
-    Add a 'filename' column to each split in a DatasetDict,
-    extracting the basename from the audio path.
+    Add a 'filename' column to each split in a DatasetDict.
+    - If audio has valid paths, use basenames.
+    - If no paths exist at all, generate synthetic IDs
+      (00001.wav, sample_00001.wav, etc.).
+      Padding width auto-adjusts to dataset size.
     Skips adding if the column already exists.
 
     Args:
         dataset (DatasetDict): HuggingFace DatasetDict
         col_audio (str): name of the audio column
         col_name (str): name of the new column
+        prefix (str|None): optional prefix for synthetic filenames.
+                           If None, use plain zero-padded numbers.
 
     Returns:
         DatasetDict: with new 'filename' column
     """
     new_splits = {}
     for split in tqdm(dataset, desc="Adding filename"):
-        if col_name in dataset[split].column_names:
-            new_splits[split] = dataset[split]  # skip if column exists
+        dset = dataset[split]
+
+        if col_name in dset.column_names:
+            new_splits[split] = dset
             continue
 
-        filenames = []
-        for ex in dataset[split]:
-            audio_val = ex[col_audio]
-            # audio_val có thể là dict (decode=True) hoặc AudioDecoder (decode=False)
-            if isinstance(audio_val, dict):
-                path = audio_val.get("path", "")
+        # Peek at the first example to see if path exists
+        first_ex = dset[0][col_audio]
+        if isinstance(first_ex, dict):
+            has_path = bool(first_ex.get("path"))
+        else:
+            has_path = bool(dset.features[col_audio].decode_example(first_ex).get("path"))
+
+        if not has_path:
+            # No path info: assign synthetic IDs with dynamic zero-padding
+            width = len(str(len(dset)))
+            if prefix is None:
+                filenames = [f"{i:0{width}d}.wav" for i in range(len(dset))]
             else:
-                # fallback decode nếu chưa cast_column decode
-                path = dataset[split].features[col_audio].decode_example(audio_val).get("path", "")
-            filenames.append(os.path.basename(path) if path else "")
-        new_splits[split] = dataset[split].add_column(col_name, filenames)
+                filenames = [f"{prefix}_{i:0{width}d}.wav" for i in range(len(dset))]
+        else:
+            # Path info exists: extract basenames
+            filenames = []
+            for ex in dset:
+                audio_val = ex[col_audio]
+                if isinstance(audio_val, dict):
+                    path = audio_val.get("path", None)
+                else:
+                    path = dset.features[col_audio].decode_example(audio_val).get("path", None)
+                filenames.append(os.path.basename(path) if path else "")
+
+        new_splits[split] = dset.add_column(col_name, filenames)
+
     return DatasetDict(new_splits)
+
 
 def get_sid2meta(dataset, 
                  fields=("filename", "dialect", "province_name", "gender"), 
@@ -308,6 +336,5 @@ def listen_audio(waveform, sr=16000):
 def load_audio_from_bytes(data: bytes, target_sr: int = 16000):
     y, sr = librosa.load(io.BytesIO(data), sr=target_sr, mono=True)
     return y.astype(np.float32), sr
-
 
 
