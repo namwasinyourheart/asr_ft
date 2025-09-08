@@ -24,8 +24,9 @@ exp_manager:
     log_artifact: false
 
 data:
+  continue_prep: false
   is_prepared: true 
-  prepared_data_dir: 
+  prepared_data_dir: /mnt/data-vol/vnpost-asr/VietBud500/exps/openai_whisper-large-v3-turbo__vietbud500__label_text_normalized/prepared_data
   root_data_dir: "/mnt/data-vol/vnpost-asr/VietBud500"
   streaming: false
   columns_to_retain: ["sample_id", "audio", "text", "filename"]
@@ -38,6 +39,9 @@ data:
   prepared_data_dirname: prepared_data
   num_proc: 8
   batch_size: 1000
+  num_shards: 40
+  writer_batch_size: 4000
+
 
 model: 
   model_type: "ASR"
