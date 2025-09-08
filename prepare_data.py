@@ -23,7 +23,7 @@ from src.utils.utils import save_dict_to_json, load_dict_from_json
 import string
 import unicodedata
 import re
-
+import time
 
 def parse_args():
     import argparse
@@ -187,215 +187,288 @@ def compute_features_and_labels_wrapper(processor):
         return example
 
     return compute_features_and_labels
-    
-def prepare_data(exp_args, data_args, model_args, device_args):
 
-    from src.utils.audio_utils import (
-        get_sid2meta, 
-        get_filename2sid, 
-        unify_colnames,
-        unify_splitnames,
-        add_sample_id,
-        add_column_filename
+
+import shutil
+import os
+from datasets import DatasetDict, concatenate_datasets, load_from_disk
+
+def process_sharded_dataset_dict(dataset, func, save_dir,
+                                 num_shards=100, batch_size=1000, num_proc=1,
+                                 writer_batch_size=1000, columns_to_remove=None,
+                                 desc="Processing",
+                                 force_clear=False):
+    """
+    Process a DatasetDict in shards, applying `func` to each shard and saving to disk.
+
+    Args:
+        dataset (DatasetDict): input dataset
+        func (callable): function to apply via map
+        save_dir (str): path to save shards
+        num_shards (int): number of shards per split
+        batch_size (int)
+        num_proc (int)
+        writer_batch_size (int)
+        columns_to_remove(list): columns to remove after processing
+        desc (str)
+        force_clear (bool): if True, delete save_dir if it exists
+    """
+    if os.path.exists(save_dir):
+        if force_clear:
+            print(f"Clearing existing save_dir: {save_dir}")
+            shutil.rmtree(save_dir)
+        else:
+            print(f"save_dir {save_dir} already exists, will resume shards")
+            # raise RuntimeError(f"save_dir already exists and is not empty: {save_dir}")
+    os.makedirs(save_dir, exist_ok=True)
+
+    new_splits = {}
+
+    for split, ds in dataset.items():
+        split_dir = os.path.join(save_dir, split)
+        os.makedirs(split_dir, exist_ok=True)
+
+        shard_paths = []
+        cursor = 0
+        for i in tqdm(range(num_shards), desc=f"{desc} {split}", unit="shard"):
+
+            shard = ds.shard(num_shards=num_shards, index=i, contiguous=True)
+            if len(shard) == 0:
+                continue
+
+            start, end = cursor, cursor + len(shard) - 1
+            cursor = end + 1
+
+            shard_dir = os.path.join(split_dir, f"shard_{i}_{start}-{end}")
+            shard_paths.append(shard_dir)
+
+            if os.path.exists(shard_dir):
+                print(f"Skipping existing {split}/{os.path.basename(shard_dir)}")
+                continue
+
+            print(f"len(shard): {len(shard)}")
+            shard = shard.map(
+                func,
+                batched=True,
+                batch_size=batch_size,
+                num_proc=num_proc,
+                writer_batch_size=writer_batch_size,
+                remove_columns=columns_to_remove,
+                desc=f"{desc} {split} shard {i}/{num_shards}"
+            )
+
+            
+
+            print(shard.column_names)
+            shard.save_to_disk(shard_dir)
+
+            
+
+        # loaded_shards = [load_from_disk(p) for p in shard_paths if os.path.exists(p)]
+        # new_splits[split] = concatenate_datasets(loaded_shards)
+
+    # return DatasetDict(new_splits)
+
+    
+
+import os
+from datasets import Audio, DatasetDict
+from src.utils.audio_utils import (
+    get_sid2meta, 
+    get_filename2sid, 
+    unify_colnames,
+    unify_splitnames,
+    add_sample_id,
+    add_column_filename
+)
+
+def process_dataset(dataset, processor, prepared_data_dir, data_args, exp_args):
+    """
+    Normalize text, compute features/labels, and filter dataset.
+    Returns dataset ready for training/evaluation.
+    """
+    dataset = unify_colnames(dataset)
+    dataset = unify_splitnames(dataset)
+    dataset = add_sample_id(dataset)
+    dataset = add_column_filename(dataset)
+
+    root_data_dir = data_args.root_data_dir
+    common_processed_data_dir = os.path.join(root_data_dir, "processed1")
+
+    all_sid2meta, all_filename2sid = prepare_metadata(dataset, common_processed_data_dir)
+
+
+    # Normalize text
+    dataset = dataset.map(
+        batch_normalize_text,
+        batched=True,
+        batch_size=data_args.batch_size,
+        num_proc=data_args.num_proc,
+        desc="Normalizing text..."
     )
 
-    root_data_dir = data_args.root_data_dir  
+    batch_compute_features_and_labels = batch_compute_features_and_labels_wrapper(processor)
 
-    # Path form root_data_dir
+    columns_to_retain = ["sample_id", "filename", "input_features", "labels"]
+    columns_to_remove = [
+        col for col in list(next(iter(dataset['test'])).keys())
+        if col not in columns_to_retain
+    ]
+    if data_args.do_shard_for_feature_computation:
+        process_sharded_dataset_dict(
+            dataset,
+            func=batch_compute_features_and_labels,
+            save_dir=prepared_data_dir,
+            num_shards=data_args.num_shards,  # e.g., 50
+            batch_size=data_args.batch_size,
+            num_proc=data_args.num_proc, 
+            writer_batch_size=data_args.writer_batch_size, # 4000
+            columns_to_remove=columns_to_remove,
+            desc="Computing features and labels",
+            force_clear=False,
+        )
+
+        dataset = load_sharded_dataset(prepared_data_dir)
+    else:
+        if not os.path.exists(prepared_data_dir):
+            # Normal .map() without sharding
+            dataset = dataset.map(
+                batch_compute_features_and_labels,
+                batched=True,
+                batch_size=data_args.batch_size,  # 4000
+                num_proc=data_args.num_proc, # 4
+                writer_batch_size=data_args.writer_batch_size,
+                remove_columns=columns_to_remove,
+                desc="Computing features and labels"
+            )
+        else: 
+            dataset = load_from_disk(prepared_data_dir)
+            return dataset
+        
+    # Filter dataset by input and label lengths
+    dataset = (
+        dataset
+        .filter(filter_inputs, 
+                input_columns=["input_length"], 
+                # batched=True,
+                # num_proc=data_args.num_proc
+        )
+        .filter(filter_labels, 
+                input_columns=["labels_length"], 
+                # batched=True,
+                # num_proc=data_args.num_proc
+        )
+    )
+
+    return dataset
+
+
+def prepare_metadata(dataset, common_processed_data_dir):
+    """
+    Generate or load sid2meta and filename2sid mappings.
+    Returns: all_sid2meta, all_filename2sid
+    """
+    os.makedirs(common_processed_data_dir, exist_ok=True)
+
+    all_sid2meta_path = os.path.join(common_processed_data_dir, "all_sid2meta.json")
+    all_filename2sid_path = os.path.join(common_processed_data_dir, "all_filename2sid.json")
+
+    if os.path.exists(all_sid2meta_path):
+        all_sid2meta = load_dict_from_json(all_sid2meta_path)
+    else:
+        all_sid2meta = get_sid2meta(dataset)
+        save_dict_to_json(all_sid2meta, all_sid2meta_path)
+
+    if os.path.exists(all_filename2sid_path):
+        all_filename2sid = load_dict_from_json(all_filename2sid_path)
+    else:
+        all_filename2sid = get_filename2sid(dataset)
+        save_dict_to_json(all_filename2sid, all_filename2sid_path)
+
+    return all_sid2meta, all_filename2sid
+
+def load_sharded_dataset(prepared_data_dir):
+    """
+    Load dataset from sharded directories.
+    Returns DatasetDict with all splits concatenated from shards.
+    """
+    splits = {}
+    for split in os.listdir(prepared_data_dir):
+        split_dir = os.path.join(prepared_data_dir, split)
+        if not os.path.isdir(split_dir):
+            continue
+        shard_paths = [
+            os.path.join(split_dir, d)
+            for d in os.listdir(split_dir)
+            if d.startswith("shard_")
+        ]
+        shard_paths = sorted(shard_paths)  # đảm bảo đúng thứ tự
+        loaded_shards = [load_from_disk(p) for p in shard_paths]
+        splits[split] = concatenate_datasets(loaded_shards)
+
+        # break
+    return DatasetDict(splits)
+
+
+def prepare_data(exp_args, data_args, model_args, device_args):
+    """
+    Main flow to prepare dataset and metadata.
+    Returns: prepared_dataset, all_sid2meta
+    """
+    root_data_dir = data_args.root_data_dir
     raw_data_dir = os.path.join(root_data_dir, "raw")
     common_processed_data_dir = os.path.join(root_data_dir, "processed")
     exps_data_dir = os.path.join(root_data_dir, "exps")
 
-    if not data_args.prepared_data_dir:
-        prepared_data_dirname = exp_args.exp_name + '__' + exp_args.exp_variant
-        prepared_data_dir = os.path.join(exps_data_dir, prepared_data_dirname)
-
-    else:
-        prepared_data_dir = data_args.prepared_data_dir
+    prepared_data_dir = (
+        data_args.prepared_data_dir
+        or os.path.join(exps_data_dir, f"{exp_args.exp_name}__{exp_args.exp_variant}")
+    )
 
     print("prepared_data_dir:", prepared_data_dir)
 
-    if not os.path.exists(prepared_data_dir):
-    
-        processor = load_processor(model_args)
-        # dataset = load_dataset(data_args.raw_data_dir, 
-        #                        streaming=data_args.streaming)
-    
+    if not os.path.exists(prepared_data_dir) or data_args.continue_prep:
+        # Load raw dataset
         dataset = load_from_disk(raw_data_dir)
-
         if data_args.subset_ratio and 0 < data_args.subset_ratio < 1:
-            print(f"Getting data subset with ratio {data_args.subset_ratio}...")
-            from datasets import DatasetDict
             dataset = DatasetDict({
-                split: dataset[split].shuffle(seed=exp_args.seed).select(range(int(data_args.subset_ratio * len(dataset[split]))))
+                split: dataset[split].shuffle(seed=exp_args.seed)
+                            .select(range(int(data_args.subset_ratio * len(dataset[split]))))
                 for split in dataset.keys()
             })
 
+        # Cast audio column
+        dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
 
-        
-        dataset = dataset.cast_column("audio", Audio(sampling_rate=16000)) 
-    
-        dataset = unify_colnames(dataset)
+        # Load processor
+        processor = load_processor(model_args)
 
-        dataset = unify_splitnames(dataset)
+        # Process dataset and metadata
+        prepared_dataset = process_dataset(dataset, processor, prepared_data_dir, data_args, exp_args)
+        all_sid2meta, all_filename2sid = prepare_metadata(dataset, common_processed_data_dir)
 
-        dataset = add_sample_id(dataset)
-    
-        dataset = add_column_filename(dataset)
+        # Save prepared dataset
+        if not os.path.exists(prepared_data_dir): 
+            prepared_dataset.save_to_disk(prepared_data_dir)
 
-        os.makedirs(common_processed_data_dir, exist_ok=True)
-        
-        all_sid2meta_path = os.path.join(common_processed_data_dir, "all_sid2meta.json")
-        
-        # Get id2meta
-        print("Getting sid2meta...")
-    
-        if not os.path.exists(all_sid2meta_path):
-            all_sid2meta = get_sid2meta(dataset)
-            print(f"Saving all_id2meta to {all_sid2meta_path}")
-            save_dict_to_json(all_sid2meta, all_sid2meta_path)
-        else:
-            print(f"{all_sid2meta_path} already exists, skipping creation.")
-            all_sid2meta = load_dict_from_json(all_sid2meta_path)
-    
-    
-        # Get filename2sid
-        print("Getting filename2sid...")
-        
-        all_filename2sid_path = os.path.join(common_processed_data_dir, "all_filename2sid.json")
-        if not os.path.exists(all_filename2sid_path):
-            all_filename2sid = get_filename2sid(dataset)
-            print(f"Saving all_filename2sid to {all_filename2sid_path}")
-            save_dict_to_json(all_filename2sid, all_filename2sid_path)
-        
-        else:
-            print(f"{all_filename2sid_path} already exists, skipping creation.")
-            all_filename2sid = load_dict_from_json(all_filename2sid_path)
-
-        columns_to_retain = ["sample_id", "filename", "input_features", "labels"]
-        columns_to_remove = [col for col in list(next(iter(dataset['test'])).keys()) if col not in columns_to_retain]
-
-        # Normalizing text/transcription
-        # print("Normalizing text...")
-
-        # dataset = dataset['test']
-
-        dataset = dataset.map(
-            batch_normalize_text, 
-            batched=True,
-            batch_size=data_args.batch_size,
-            num_proc=data_args.num_proc,
-            # remove_columns=columns_to_remove,
-            desc="Normalizing text...")
-
-
-        # Computing features and labels
-        # print("Computing features and labels ...")
-                
-        batch_compute_features_and_labels = batch_compute_features_and_labels_wrapper(processor)
-        
-        dataset = dataset.map(batch_compute_features_and_labels, 
-                              remove_columns=columns_to_remove,
-                              batched=True,
-                              batch_size=data_args.batch_size,
-                              num_proc=data_args.num_proc,
-                              desc="Computing features and labels"
-                              )
-        # Filter inputs and labels by lengh
-        dataset = (dataset
-            .filter(filter_inputs, input_columns= ["input_length"])  # no `remove_columns` coz streaming
-        	.filter(filter_labels, input_columns=["labels_length"])
-        )
-
-
-        print(f"Saving prepared dataset to disk...{prepared_data_dir}")
-        dataset.save_to_disk(prepared_data_dir)
-
-        prepared_dataset = dataset
-        
     else:
-        all_sid2meta_path = os.path.join(common_processed_data_dir, "all_sid2meta.json")
-        all_filename2sid_path = os.path.join(common_processed_data_dir, "all_filename2sid.json")
-
-        if not os.path.exists(all_sid2meta_path) or not os.path.exists(all_filename2sid_path):
-
-            
-            # Get id2meta
-            print("Getting sid2meta...")
-
-            dataset = load_from_disk(raw_data_dir)
-
-            if data_args.subset_ratio and 0 < data_args.subset_ratio < 1:
-                print(f"Getting data subset with ratio {data_args.subset_ratio}...")
-                from datasets import DatasetDict
-                dataset = DatasetDict({
-                    split: dataset[split].shuffle(seed=exp_args.seed).select(range(int(data_args.subset_ratio * len(dataset[split]))))
-                    for split in dataset.keys()
-                })
-            
-            dataset = dataset.cast_column("audio", Audio(sampling_rate=16000)) 
-        
-            dataset = unify_colnames(dataset)
-
-            dataset = unify_splitnames(dataset)
-
-            dataset = add_sample_id(dataset)
-        
-            dataset = add_column_filename(dataset)
-
-            os.makedirs(common_processed_data_dir, exist_ok=True)
-
-            all_sid2meta = get_sid2meta(dataset)
-            print(f"Saving all_id2meta to {all_sid2meta_path}")
-            save_dict_to_json(all_sid2meta, all_sid2meta_path)
-        
-            # if not os.path.exists(all_sid2meta_path):
-            #     all_sid2meta = get_sid2meta(dataset)
-            #     print(f"Saving all_id2meta to {all_sid2meta_path}")
-            #     save_dict_to_json(all_sid2meta, all_sid2meta_path)
-            # else:
-            #     print(f"{all_sid2meta_path} already exists, skipping creation.")
-            #     all_sid2meta = load_dict_from_json(all_sid2meta_path)
-
-            
-            # Get filename2sid
-            print("Getting filename2sid...")
-            
-
-            all_filename2sid = get_filename2sid(dataset)
-            print(f"Saving all_filename2sid to {all_filename2sid_path}")
-            save_dict_to_json(all_filename2sid, all_filename2sid_path)
-            
-
-            # if not os.path.exists(all_filename2sid_path):
-            #     all_filename2sid = get_filename2sid(dataset)
-            #     print(f"Saving all_filename2sid to {all_filename2sid_path}")
-            #     save_dict_to_json(all_filename2sid, all_filename2sid_path)
-            
-            # else:
-            #     print(f"{all_filename2sid_path} already exists, skipping creation.")
-            #     all_filename2sid = load_dict_from_json(all_filename2sid_path)
-            
+        # Load prepared dataset from disk
+        if data_args.do_shard_for_feature_computation:
+            prepared_dataset = load_sharded_dataset(prepared_data_dir)
         else:
+            prepared_dataset = load_from_disk(prepared_data_dir)
+            
+        # Load or create metadata if missing
+        all_sid2meta, all_filename2sid = prepare_metadata(prepared_dataset, common_processed_data_dir)
 
-            print(f"{all_sid2meta_path} already exists, skipping creation.")
-            all_sid2meta = load_dict_from_json(all_sid2meta_path)
-
-            print(f"{all_filename2sid_path} already exists, skipping creation.")
-            all_filename2sid = load_dict_from_json(all_filename2sid_path)
-
-        print(f'Loading prepared data from {prepared_data_dir}...')
-        prepared_dataset = load_from_disk(prepared_data_dir)
-
+    # Optionally show dataset examples
     if data_args.do_show:
-        # Show dataset examples
         show_ds_examples(prepared_dataset)
 
-    # if data_args.do_save:
-    #     # Lưu dataset
-    #     dataset.save_to_disk(prepared_data_dir)
-
     return prepared_dataset, all_sid2meta
+
+
+
 
 def show_ds_examples(ds_dict, num_examples=3, show_audio_array=False, audio_preview_len=10):
     """
