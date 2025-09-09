@@ -25,12 +25,15 @@ input:
 generate:
     seed: 202508
     gen_args:
-        max_new_tokens: 100
-        temperature:
-        max_length: 
-        do_sample:
-        top_p:
-        top_k:
+        # max_new_tokens: 440
+        num_beams: 5
+        condition_on_prev_tokens: False
+        compression_ratio_threshold: 1.35 
+        temperature: 0 # [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+        logprob_threshold: -1.0
+        no_speech_threshold: 0.6
+        return_timestamps: True
+
 
 device: 
     use_cpu: false
