@@ -146,7 +146,7 @@ def main():
     print(f"Device: {model.device}")
 
     # Generate transcription
-    predicted_ids = model.generate(input_features)
+    predicted_ids = model.generate(input_features, **gen_args.gen_args)
     transcription = processor.batch_decode(predicted_ids, skip_special_tokens=True)[0]
 
     print("Transcription:", transcription)
