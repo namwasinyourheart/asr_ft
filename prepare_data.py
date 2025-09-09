@@ -293,7 +293,7 @@ def process_dataset(dataset, processor, prepared_data_dir, data_args, exp_args):
     dataset = add_column_filename(dataset)
 
     root_data_dir = data_args.root_data_dir
-    common_processed_data_dir = os.path.join(root_data_dir, "processed1")
+    common_processed_data_dir = os.path.join(root_data_dir, "processed")
 
     all_sid2meta, all_filename2sid = prepare_metadata(dataset, common_processed_data_dir)
 
