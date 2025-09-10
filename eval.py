@@ -226,7 +226,8 @@ import numpy as np
 def calculate_wer_per_sample(ref, hyp):
         r = ref.split()
         h = hyp.split()
-        d = np.zeros((len(r)+1, len(h)+1), dtype=np.uint8)
+        d = np.zeros((len(r)+1, len(h)+1), dtype=np.uint16)
+        # d = np.zeros((len(r)+1, len(h)+1), dtype=np.uint8)
 
         for i in range(len(r)+1):
             d[i][0] = i
