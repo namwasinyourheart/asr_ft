@@ -36,7 +36,9 @@ def unify_colnames(dataset, col_mapping=None):
             "region": "dialect",
             "dialect": "dialect",
             "gender": "gender",
-            "transcription": "text"
+            "transcription": "text",
+            "sentence": "text",
+            "id": "sample_id"
         }
     
     if isinstance(dataset, DatasetDict):
@@ -92,7 +94,7 @@ def unify_splitnames(dataset, split_mapping=None):
 def add_sample_id(dataset, col_name="sample_id"):
     """
     Add a sequential sample_id column to each split in a DatasetDict,
-    and move it to the first column.
+    and move it to the first column. Skips if the column already exists.
 
     Args:
         dataset (DatasetDict): HuggingFace DatasetDict
@@ -103,10 +105,18 @@ def add_sample_id(dataset, col_name="sample_id"):
     """
     new_splits = {}
     for split in tqdm(dataset, desc="Adding sample_id"):
-        sample_ids = list(range(len(dataset[split])))
-        ds_split = dataset[split].add_column(col_name, sample_ids)
+        ds_split = dataset[split]
+        
+        # Skip if sample_id already exists
+        if col_name in ds_split.column_names:
+            new_splits[split] = ds_split
+            continue
 
-        # ép sample_id ra cột đầu tiên
+        # Create the sample_id column
+        sample_ids = list(range(len(ds_split)))
+        ds_split = ds_split.add_column(col_name, sample_ids)
+
+        # Reorder columns to place sample_id first
         all_cols = ds_split.column_names
         reordered_cols = [col_name] + [c for c in all_cols if c != col_name]
         ds_split = ds_split.select_columns(reordered_cols)
@@ -114,6 +124,7 @@ def add_sample_id(dataset, col_name="sample_id"):
         new_splits[split] = ds_split
 
     return DatasetDict(new_splits)
+
 
 import os
 from datasets import DatasetDict

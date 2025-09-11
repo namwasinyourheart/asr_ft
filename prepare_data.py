@@ -358,6 +358,7 @@ def process_dataset(dataset, processor, prepared_data_dir, data_args, exp_args):
                 # batched=True,
                 # num_proc=data_args.num_proc
         )
+        .remove_columns(["input_length", "labels_length"])
     )
 
     return dataset
@@ -374,14 +375,18 @@ def prepare_metadata(dataset, common_processed_data_dir):
     all_filename2sid_path = os.path.join(common_processed_data_dir, "all_filename2sid.json")
 
     if os.path.exists(all_sid2meta_path):
+        print(f"Loading all_sid2meta from {all_sid2meta_path}")
         all_sid2meta = load_dict_from_json(all_sid2meta_path)
     else:
+        print(f"Generating all_sid2meta and saving to {all_sid2meta_path}")
         all_sid2meta = get_sid2meta(dataset)
         save_dict_to_json(all_sid2meta, all_sid2meta_path)
 
     if os.path.exists(all_filename2sid_path):
+        print(f"Loading all_filename2sid from {all_filename2sid_path}")
         all_filename2sid = load_dict_from_json(all_filename2sid_path)
     else:
+        print(f"Generating all_filename2sid and saving to {all_filename2sid_path}")
         all_filename2sid = get_filename2sid(dataset)
         save_dict_to_json(all_filename2sid, all_filename2sid_path)
 
@@ -416,15 +421,20 @@ def prepare_data(exp_args, data_args, model_args, device_args):
     Returns: prepared_dataset, all_sid2meta
     """
     root_data_dir = data_args.root_data_dir
-    raw_data_dir = os.path.join(root_data_dir, "raw")
-    common_processed_data_dir = os.path.join(root_data_dir, "processed")
-    exps_data_dir = os.path.join(root_data_dir, "exps")
+    
+    # raw_data_dir = os.path.join(root_data_dir, "raw")
+    # common_processed_data_dir = os.path.join(root_data_dir, "processed")
+    # exps_data_dir = os.path.join(root_data_dir, "exps")
 
+    raw_data_dir = getattr(data_args, "raw_data_dir", os.path.join(root_data_dir, "raw"))
+    common_processed_data_dir = getattr(data_args, "common_processed_data_dir", os.path.join(root_data_dir, "processed"))
+    exps_data_dir = getattr(data_args, "exps_data_dir", os.path.join(root_data_dir, "exps"))
+    
     prepared_data_dir = (
         data_args.prepared_data_dir
         or os.path.join(exps_data_dir, f"{exp_args.exp_name}__{exp_args.exp_variant}")
     )
-
+    
     print("prepared_data_dir:", prepared_data_dir)
 
     if not os.path.exists(prepared_data_dir) or data_args.continue_prep:
