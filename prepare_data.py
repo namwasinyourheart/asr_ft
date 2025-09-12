@@ -39,7 +39,7 @@ def load_cfg(config_path, override_args=None):
 
     """
     Load a configuration file using Hydra and OmegaConf.
-    
+
     Args:
         config_path (str): Path to the configuration file.
         override_args (list, optional): List of arguments to override configuration values.
@@ -50,19 +50,19 @@ def load_cfg(config_path, override_args=None):
 
     override_args = override_args or []
     config_path = os.path.normpath(config_path)
-    
+
     if not os.path.isfile(config_path):
         raise FileNotFoundError(f"Configuration file not found at: {config_path}")
-    
+
     config_dir = os.path.dirname(config_path)
     config_fn = os.path.splitext(os.path.basename(config_path))[0]
-    
+
     try:
         with initialize(version_base=None, config_path=config_dir):
             cfg = compose(config_name=config_fn, overrides=override_args)
     except Exception as e:
         raise RuntimeError(f"Failed to load configuration from {config_path}: {e}")
-    
+
     exp_args = cfg.exp_manager
     data_args = cfg.data
     model_args = cfg.model
@@ -106,7 +106,7 @@ def normalize_text(example):
 
     # example["text"] = text
     return {"text": text}
-    
+
 import unicodedata, re, string
 
 def batch_normalize_text(batch):
@@ -183,7 +183,7 @@ def compute_features_and_labels_wrapper(processor):
 
         example["filename"] = example["filename"]
         example["sample_id"] = example["sample_id"]
-        
+
         return example
 
     return compute_features_and_labels
@@ -257,19 +257,19 @@ def process_sharded_dataset_dict(dataset, func, save_dir,
                 desc=f"{desc} {split} shard {i}/{num_shards}"
             )
 
-            
+
 
             print(shard.column_names)
             shard.save_to_disk(shard_dir)
 
-            
+
 
         # loaded_shards = [load_from_disk(p) for p in shard_paths if os.path.exists(p)]
         # new_splits[split] = concatenate_datasets(loaded_shards)
 
     # return DatasetDict(new_splits)
 
-    
+
 
 import os
 from datasets import Audio, DatasetDict
@@ -344,7 +344,7 @@ def process_dataset(dataset, processor, prepared_data_dir, data_args, exp_args):
         else: 
             dataset = load_from_disk(prepared_data_dir)
             return dataset
-        
+
     # Filter dataset by input and label lengths
     dataset = (
         dataset
@@ -415,31 +415,78 @@ def load_sharded_dataset(prepared_data_dir):
     return DatasetDict(splits)
 
 
+from datasets import load_dataset, DatasetDict
+
+def create_hf_ds(dataset_script_path: str, 
+    data_dir: str, 
+    save_dir: str = None, 
+    streaming: bool = False) -> DatasetDict:
+    """
+    Create Hugging Face dataset from a local dataset loading script.
+
+    Args:
+        dataset_script_path (str): path to dataset.py (e.g., "prepare_data/vivos_dataset/vivos.py")
+        data_dir (str): path to raw dataset directory (e.g., local_raw_data_dir_vivos)
+        save_dir (str, optional): if given, will save the dataset to this directory
+        streaming (bool): whether to use streaming mode (avoid loading full dataset into RAM)
+
+    Returns:
+        DatasetDict
+    """
+    print(f"Loading dataset using script={dataset_script_path}, data_dir={data_dir} ...")
+
+    ds = load_dataset(
+        path=dataset_script_path,
+        data_dir=data_dir,
+        trust_remote_code=True,  # needed if dataset.py uses custom code
+        streaming=streaming,
+    )
+
+    if not streaming:
+        # print(ds)
+        # print("Example sample:", ds["train"][0])
+
+        if save_dir:
+            print(f"Saving dataset to disk at {save_dir} ...")
+            ds.save_to_disk(save_dir)
+
+    return ds
+
+
+
 def prepare_data(exp_args, data_args, model_args, device_args):
     """
     Main flow to prepare dataset and metadata.
     Returns: prepared_dataset, all_sid2meta
     """
     root_data_dir = data_args.root_data_dir
-    
-    # raw_data_dir = os.path.join(root_data_dir, "raw")
-    # common_processed_data_dir = os.path.join(root_data_dir, "processed")
-    # exps_data_dir = os.path.join(root_data_dir, "exps")
 
-    raw_data_dir = getattr(data_args, "raw_data_dir", os.path.join(root_data_dir, "raw"))
+    hf_raw_data_dir = getattr(data_args, "hf_raw_data_dir", os.path.join(root_data_dir, "raw", "hf"))
     common_processed_data_dir = getattr(data_args, "common_processed_data_dir", os.path.join(root_data_dir, "processed"))
     exps_data_dir = getattr(data_args, "exps_data_dir", os.path.join(root_data_dir, "exps"))
-    
+
     prepared_data_dir = (
         data_args.prepared_data_dir
         or os.path.join(exps_data_dir, f"{exp_args.exp_name}__{exp_args.exp_variant}")
     )
-    
+
     print("prepared_data_dir:", prepared_data_dir)
 
     if not os.path.exists(prepared_data_dir) or data_args.continue_prep:
         # Load raw dataset
-        dataset = load_from_disk(raw_data_dir)
+        if os.path.exists(hf_raw_data_dir) and data_args.use_existing_hfds:
+            print(f"Loading existing HF dataset from {hf_raw_data_dir}")
+            dataset = load_from_disk(hf_raw_data_dir)
+
+        else:
+            print("Creating new HF dataset ...")
+            dataset = create_hf_ds(  
+                dataset_script_path=data_args.dataset_script_path, 
+                data_dir=data_args.dataset_source_dir,   # raw dataset folder (e.g. VIVOS raw)
+                save_dir=hf_raw_data_dir if data_args.save_hfds else None
+            )
+
+        # Optionally subset
         if data_args.subset_ratio and 0 < data_args.subset_ratio < 1:
             dataset = DatasetDict({
                 split: dataset[split].shuffle(seed=exp_args.seed)
@@ -467,7 +514,7 @@ def prepare_data(exp_args, data_args, model_args, device_args):
             prepared_dataset = load_sharded_dataset(prepared_data_dir)
         else:
             prepared_dataset = load_from_disk(prepared_data_dir)
-            
+
         # Load or create metadata if missing
         all_sid2meta, all_filename2sid = prepare_metadata(prepared_dataset, common_processed_data_dir)
 
@@ -483,7 +530,7 @@ def prepare_data(exp_args, data_args, model_args, device_args):
 def show_ds_examples(ds_dict, num_examples=3, show_audio_array=False, audio_preview_len=10):
     """
     Print examples from each split of an IterableDatasetDict.
-    
+
     Args:
         ds_dict: IterableDatasetDict
         num_examples: number of examples per split
@@ -543,7 +590,7 @@ def main():
 
     # Set seed
     set_seed(exp_args.seed)
-    
+
     dataset, all_sid2meta = prepare_data(exp_args, data_args, model_args, device_args)
     print(dataset)
     print(all_sid2meta.keys())
