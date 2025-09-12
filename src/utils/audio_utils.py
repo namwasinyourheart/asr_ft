@@ -280,8 +280,9 @@ def listen_audio_by_filename(filename: str,
     # Play audio
     IPython.display.display(IPython.display.Audio(waveform, rate=sr))
 
-
-def show_sample_by_filename(filename: str, split_dataset, split_filename2sid: dict = None):
+def show_sample_by_filename(filename: str, 
+                            split_dataset, 
+                            split_filename2sid: dict = None):
     """
     Display audio and metadata for a sample given its filename.
     
@@ -297,16 +298,19 @@ def show_sample_by_filename(filename: str, split_dataset, split_filename2sid: di
     
     # Get sample index
     if split_filename2sid is not None:
+        # Look up the sample_id based on the filename
         sample_id = split_filename2sid.get(filename)
         if sample_id is None:
             raise ValueError(f"Filename '{filename}' not found in mapping")
-        idx = int(sample_id)
-    else:
-        # fallback: search linearly
-        idx = next((i for i, s in enumerate(split_dataset) if s['filename'] == filename), None)
-        if idx is None:
-            raise ValueError(f"Filename '{filename}' not found in dataset")
+        
+    # Find the sample index by its filename
+    idx = next((i for i, s in enumerate(split_dataset) if s['filename'] == filename), None)
+
     
+    if idx is None:
+        raise ValueError(f"Filename '{filename}' not found in dataset")
+    
+    # Get the sample using the found index
     sample = split_dataset[idx]
     
     # Play audio
@@ -315,10 +319,10 @@ def show_sample_by_filename(filename: str, split_dataset, split_filename2sid: di
     IPython.display.display(IPython.display.Audio(waveform, rate=sr))
     
     # Show metadata
-    # print("Metadata:")
     for key, value in sample.items():
         if key != 'audio':
             print(f"{key}: {value}")
+
 
 
 def listen_audio(waveform, sr=16000):
