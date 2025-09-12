@@ -452,6 +452,37 @@ def create_hf_ds(dataset_script_path: str,
 
     return ds
 
+def make_splits(dataset, test_size=0.1, dev_size=0.1, seed=42):
+    """
+    Generate train/dev/test splits from a Hugging Face dataset.
+    If dataset already has test split, reuse it; otherwise create it.
+
+    Args:
+        dataset (DatasetDict): Hugging Face dataset with at least 'train' split.
+        test_size (int|float): Number of samples or ratio for test split.
+        dev_size (int|float): Number of samples or ratio for dev split (from train).
+        seed (int): Random seed for reproducibility.
+
+    Returns:
+        DatasetDict with train, dev, test splits.
+    """
+    # ensure test split exists
+    if "test" not in dataset:
+        split = dataset["train"].train_test_split(test_size=test_size, seed=seed)
+        train_data = split["train"]
+        test_data = split["test"]
+    else:
+        train_data = dataset["train"]
+        test_data = dataset["test"]
+
+    # create dev split from train
+    train_dev = train_data.train_test_split(test_size=dev_size, seed=seed)
+
+    return DatasetDict({
+        "train": train_dev["train"],
+        "dev": train_dev["test"],
+        "test": test_data
+    })
 
 
 def prepare_data(exp_args, data_args, model_args, device_args):
@@ -487,35 +518,49 @@ def prepare_data(exp_args, data_args, model_args, device_args):
             )
 
         # Optionally subset
+        
         if data_args.subset_ratio and 0 < data_args.subset_ratio < 1:
+            print("Subsetting dataset ...")
             dataset = DatasetDict({
                 split: dataset[split].shuffle(seed=exp_args.seed)
                             .select(range(int(data_args.subset_ratio * len(dataset[split]))))
                 for split in dataset.keys()
             })
 
+
+        # Split into train, dev, test splits
+        if data_args.do_split:
+            print("Splitting dataset into train, dev, test splits ...")
+            dataset = make_splits(dataset, data_args.test_ratio, data_args.val_ratio, exp_args.seed)
+
         # Cast audio column
+        print("Casting audio column ...")
         dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
 
         # Load processor
+        print("Loading processor ...")
         processor = load_processor(model_args)
 
         # Process dataset and metadata
+        print("Processing dataset and metadata ...")
         prepared_dataset = process_dataset(dataset, processor, prepared_data_dir, data_args, exp_args)
         all_sid2meta, all_filename2sid = prepare_metadata(dataset, common_processed_data_dir)
 
         # Save prepared dataset
+        print("Saving prepared dataset ...")
         if not os.path.exists(prepared_data_dir): 
             prepared_dataset.save_to_disk(prepared_data_dir)
 
     else:
         # Load prepared dataset from disk
+        print("Loading prepared dataset from disk ...")
         if data_args.do_shard_for_feature_computation:
             prepared_dataset = load_sharded_dataset(prepared_data_dir)
         else:
             prepared_dataset = load_from_disk(prepared_data_dir)
 
         # Load or create metadata if missing
+        print("Loading or creating metadata ...")
         all_sid2meta, all_filename2sid = prepare_metadata(prepared_dataset, common_processed_data_dir)
 
     # Optionally show dataset examples
