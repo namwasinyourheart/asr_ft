@@ -5,6 +5,7 @@ CUDA_VISIBLE_DEVICES=0 python prepare_data.py \
     exp_manager.exp_variant="toy" \
     data.use_existing_hfds=false \
     data.root_data_dir="/data/nampv1/ASR-VIVOS-HCMUS-15H" \
+    data.source_data_dir="/data/nampv1/ASR-VIVOS-HCMUS-15H/raw/vivos" \
     data.hf_raw_data_dir="/data/nampv1/ASR-VIVOS-HCMUS-15H/raw/hf" \
     data.prepared_data_dir="/data/nampv1/ASR-VIVOS-HCMUS-15H/exps/toy" \
     data.do_shard_for_feature_computation=False \
