@@ -9,3 +9,25 @@ CUDA_VISIBLE_DEVICES=0 python prepare_data.py \
     data.do_shard_for_feature_computation=False \
     data.num_proc=1 \
     data.subset_ratio=0.01
+
+
+CUDA_VISIBLE_DEVICES=0 python prepare_data.py \
+    --config_path="configs/12092025/vlsp2020__openai_whisper-large-v3-turbo.yaml" \
+    exp_manager.exp_variant="prepare_data" \
+    data.use_existing_hfds=true \
+    data.hf_raw_data_dir="/data/nampv1/ASR-VLSP2020-VINAI-100H/raw/hf" \
+    data.do_split=true \
+    data.root_data_dir="/data/nampv1/ASR-VLSP2020-VINAI-100H" \
+    data.prepared_data_dir=null \
+    data.do_shard_for_feature_computation=False \
+    data.num_proc=1
+
+CUDA_VISIBLE_DEVICES=0 python eval.py \
+    --config_path="configs/12092025/vlsp2020__openai_whisper-large-v3-turbo.yaml" \
+    exp_manager.exp_variant="baseline" \
+    data.prepared_data_dir="/data/nampv1/ASR-VLSP2020-VINAI-100H/exps/vlsp2020__openai_whisper-large-v3-turbo__prepare_data" \
+    evaluate.break_step=1 \
+    evaluate.batch_size=4 \
+    evaluate.metric_filename="test_metrics_baseline_toy.txt" \
+    evaluate.prediction_filename="test_predictions_baseline_toy.txt" \
+    evaluate.result_filename="test_result_baseline_toy.txt"
