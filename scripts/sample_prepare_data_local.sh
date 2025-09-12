@@ -1,0 +1,16 @@
+#!/bin/bash
+
+CUDA_VISIBLE_DEVICES=0 python prepare_data.py \
+    --config_path="configs/12092025/vivos__openai_whisper-large-v3-turbo.yaml" \
+    exp_manager.exp_variant="toy" \
+    data.use_existing_hfds=false \
+    data.root_data_dir="/media/nampv1/hdd/data/VIVOS/" \
+    data.hf_raw_data_dir="/media/nampv1/hdd/data/VIVOS/raw/hf" \
+    data.prepared_data_dir="/media/nampv1/hdd/data/VIVOS/exps/toy" \
+    data.do_shard_for_feature_computation=False \
+    data.num_proc=1 \
+    data.subset_ratio=0.01
+
+
+
+
