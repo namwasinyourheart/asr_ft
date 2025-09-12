@@ -338,7 +338,8 @@ def main():
     # Get dataset
     dataset, all_sid2meta = prepare_data(exp_args, data_args, model_args, device_args)
 
-    
+    print(dataset)
+
     # Load model and processor
     from transcribe import load_model_for_transcribe
     
