@@ -7,6 +7,7 @@ import json
 
 import warnings
 
+from notebooks.explore_models import adapter_path
 import pandas as pd
 import numpy as np
 from torch.utils.data import DataLoader
@@ -321,7 +322,22 @@ def finetune(
     # Merge model if required
     if train_args.use_peft:
         if training_args.do_train and train_args.merge_after_train:
-            pass
+            print("Merging model...")
+            adapter_path = os.path.join(exp_variant_results_dir, 'adapter')
+            base_model = load_whisper_model(model_args, device_args)
+            processor = load_processor(model_args, device_args)
+            
+            from peft import PeftModel
+            finetuned_model = PeftModel.from_pretrained(base_model, adapter_path)
+            finetuned_model = finetuned_model.merge_and_unload()
+            
+            print("Saving merged model and processor...")
+            # Save merged model
+            finetuned_model.save_pretrained(os.path.join(exp_variant_results_dir, 'merged_model'))
+
+            # Save processor
+            processor.save_pretrained(os.path.join(exp_variant_results_dir, 'merged_model'))
+            print(f"Merged model and processor saved to {os.path.join(exp_variant_results_dir, 'merged_model')}")
 
     # Log experiment artifact
     if exp_args.wandb.log_artifact:
