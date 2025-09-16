@@ -630,42 +630,49 @@ from pyarrow.lib import ArrowInvalid
 def unify_sample_id_dtype(dataset_dict, dtype="string", map_batch_size=1024):
     """
     Ensure 'sample_id' column has consistent dtype across splits.
-    - Tries fast cast_column.
-    - Falls back to batched map if ArrowInvalid offset overflow occurs.
+    - Try fast cast_column first.
+    - If ArrowInvalid offset overflow occurs, fallback to map with batch conversion.
     """
     hf_dtype = Value(dtype)
-
     new_splits = {}
+
     for split, dset in dataset_dict.items():
         if "sample_id" not in dset.column_names:
             new_splits[split] = dset
             continue
 
-        # --- Fast path: cast_column
+        # --- Fast path
         try:
             new_splits[split] = dset.cast_column("sample_id", hf_dtype)
             continue
         except ArrowInvalid:
-            print(f"[WARN] Fallback to map for split '{split}' (ArrowInvalid offset overflow).")
+            print(f"[WARN] Offset overflow in split '{split}', fallback to map().")
         except Exception as e:
-            print(f"[WARN] Fallback to map for split '{split}' due to error: {e}")
+            print(f"[WARN] Error in cast_column on split '{split}', fallback to map(): {e}")
 
-        # --- Fallback: batched map
+        # --- Fallback: enforce type with map
         def _cast_ids(batch):
-            return {"sample_id": [str(x) if dtype == "string" else x for x in batch["sample_id"]]}
+            if dtype == "string":
+                return {"sample_id": [str(x) for x in batch["sample_id"]]}
+            elif dtype.startswith("int"):
+                return {"sample_id": [int(x) for x in batch["sample_id"]]}
+            elif dtype.startswith("float"):
+                return {"sample_id": [float(x) for x in batch["sample_id"]]}
+            else:
+                raise ValueError(f"Unsupported dtype: {dtype}")
 
         dset = dset.map(
             _cast_ids,
             batched=True,
             batch_size=map_batch_size,
-            desc=f"Casting sample_id (fallback map) in {split}"
+            desc=f"Casting sample_id in {split} (fallback)"
         )
 
-        # Make sure column type is properly declared
-        dset = dset.cast_column("sample_id", hf_dtype)
+        # đồng bộ schema sau khi map
+        dset = dset.cast({"sample_id": hf_dtype})
         new_splits[split] = dset
 
-    return type(dataset_dict)(new_splits)
+    return DatasetDict(new_splits)
 
 
 def prepare_multi_data(exp_args, data_args, model_args, device_args):
