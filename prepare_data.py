@@ -817,13 +817,13 @@ def normalize_schema(ds, map_batch_size=1024):
             desc="Casting gender to string (safe)"
         )
         
-        # Gán lại schema để đảm bảo đúng là kiểu string
-        ds = ds.cast_column("gender", Value("string"))
+        # # Gán lại schema để đảm bảo đúng là kiểu string
+        # ds = ds.cast_column("gender", Value("string"))
     else:
         # Nếu dataset không có cột 'gender', thêm cột này với giá trị mặc định
         print("[INFO] Adding 'gender' column with default 'na' value.")
         ds = ds.add_column("gender", ["na"] * len(ds))
-        ds = ds.cast_column("gender", Value("string"))
+        # ds = ds.cast_column("gender", Value("string"))
 
     return ds
 
