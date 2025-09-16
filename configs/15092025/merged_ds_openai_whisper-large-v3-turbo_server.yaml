@@ -54,7 +54,7 @@ data:
 
     - name: commonvoice_vi_21
       dataset_script_path: prepare_data/commonvoice_22_vi_hfds/commonvoice_22_vi.py
-      dataset_source_dir: "/data/nampv1/ASR-CommonVoice22Vi-21H/raw/cv-corpus-22.0-2025-06-20/vi"
+      dataset_source_dir: "/data/nampv1/ASR-CommonVoice22Vi-21H/raw"
       hf_raw_data_dir: "/data/nampv1/ASR-CommonVoice22Vi-21H/raw/hf"
       use_existing_hfds: false
       do_split: false
