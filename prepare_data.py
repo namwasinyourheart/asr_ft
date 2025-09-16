@@ -892,7 +892,7 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
             # merged_dataset[split] = concatenate_datasets(new_list)
 
             new_list = [
-                force_all_strings(normalize_schema(d, map_batch_size=data_args.add_col_dsname_batch_size))
+                force_all_strings(normalize_schema(d, map_batch_size=128))
                 for d in ds_list
             ]
             merged_dataset[split] = concatenate_datasets(new_list)
