@@ -718,7 +718,8 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
             dataset = add_sample_id(dataset)
             # print("dataset after add sample id:", dataset.column_names)
 
-            dataset = add_column_filename(dataset)
+            # dataset = add_column_filename(dataset)
+            dataset = add_column_filename(dataset, col_audio="audio", col_name="filename", prefix=None, map_batch_size=data_args.add_col_dsname_batch_size)
             # print("dataset after add filename:", dataset.column_names)
 
 
