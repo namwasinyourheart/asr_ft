@@ -269,7 +269,7 @@ def add_column_filename(dataset, col_audio="audio", col_name="filename", prefix=
 from datasets import DatasetDict
 from tqdm import tqdm
 
-def add_column_datasetname(dataset, ds_name, col_name="dataset_name"):
+def add_column_datasetname(dataset, ds_name, add_col_dsname_batch_size, col_name="dataset_name"):
     """
     Add a dataset_name column to each split in a DatasetDict.
     - Skips if the column already exists.
@@ -297,7 +297,7 @@ def add_column_datasetname(dataset, ds_name, col_name="dataset_name"):
         dset = dset.map(
             lambda batch: {col_name: [ds_name] * len(batch[col_name if col_name in batch else next(iter(batch))])},
             batched=True,
-            batch_size=500,
+            batch_size=add_col_dsname_batch_size,
             desc=f"Adding {col_name} to {split}"
         )
 
