@@ -361,14 +361,24 @@ def add_column_datasetname(dataset, ds_name, col_name="dataset_name"):
 from datasets import DatasetDict
 from tqdm import tqdm
 import pyarrow as pa
+from pyarrow.lib import ArrowInvalid
 
-def add_column_datasetname(dataset, ds_name, col_name="dataset_name"):
+def add_column_datasetname(dataset, ds_name, add_col_dsname_batch_size=1024, col_name="dataset_name"):
     """
     Add a dataset_name column to each split in a DatasetDict.
-    - Tries a memory-efficient pyarrow.large_string column.
-    - Calls flatten_indices() to reduce chunk fragmentation.
-    - Falls back to plain Python list if Arrow throws an error.
+    - Tries fast pyarrow.add_column (large_string).
+    - Falls back to batched map if ArrowInvalid offset overflow occurs.
+
+    Args:
+        dataset (DatasetDict): HuggingFace DatasetDict
+        ds_name (str|None): dataset name to fill
+        add_col_dsname_batch_size (int): batch size for fallback map
+        col_name (str): column name to add (default "dataset_name")
+
+    Returns:
+        DatasetDict: with dataset_name column added
     """
+
     if ds_name is None:
         return dataset
 
@@ -380,41 +390,31 @@ def add_column_datasetname(dataset, ds_name, col_name="dataset_name"):
             new_splits[split] = dset
             continue
 
-        # Try to reduce fragment/chunk issues first
-        try:
-            dset = dset.flatten_indices()
-        except Exception:
-            # ignore if flattening not needed or fails
-            pass
-
         n = len(dset)
-        # Preferred: use large_string to avoid 32-bit offset overflow
+
+        # --- Fast path: pyarrow add_column
         try:
             values = pa.array([ds_name] * n, type=pa.large_string())
             new_splits[split] = dset.add_column(col_name, values)
             continue
-        except pa.lib.ArrowInvalid:
-            # fall through to next strategies
-            pass
-        except Exception:
-            # any other arrow error -> fallback later
-            pass
-
-        # Try chunked_array composed of a single large_string chunk
-        try:
-            chunk = pa.array([ds_name] * n, type=pa.large_string())
-            values = pa.chunked_array([chunk])
-            new_splits[split] = dset.add_column(col_name, values)
-            continue
-        except Exception:
-            pass
-
-        # Final, robust fallback: plain Python list (should always work)
-        try:
-            new_splits[split] = dset.add_column(col_name, [ds_name] * n)
+        except ArrowInvalid:
+            # Known error: offset overflow → fallback
+            print(f"[WARN] Fallback to batched map for split '{split}' (ArrowInvalid offset overflow).")
         except Exception as e:
-            # Last resort: raise with helpful message
-            raise RuntimeError(f"Failed to add column '{col_name}' to split '{split}': {e}")
+            print(f"[WARN] Fallback to batched map for split '{split}' due to error: {e}")
+
+        # --- Fallback: batched map
+        def _add_col(batch):
+            length = len(next(iter(batch.values())))
+            return {col_name: [ds_name] * length}
+
+        dset = dset.map(
+            _add_col,
+            batched=True,
+            batch_size=add_col_dsname_batch_size,
+            desc=f"Adding {col_name} (fallback map) to {split}"
+        )
+        new_splits[split] = dset
 
     return DatasetDict(new_splits)
 
