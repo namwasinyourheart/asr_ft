@@ -667,9 +667,7 @@ def unify_sample_id_dtype(dataset_dict, dtype="string", map_batch_size=1024):
             batch_size=map_batch_size,
             desc=f"Casting sample_id in {split} (fallback)"
         )
-
-        # đồng bộ schema sau khi map
-        dset = dset.cast({"sample_id": hf_dtype})
+        
         new_splits[split] = dset
 
     return DatasetDict(new_splits)
