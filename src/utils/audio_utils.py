@@ -266,6 +266,83 @@ def add_column_filename(dataset, col_audio="audio", col_name="filename", prefix=
     return DatasetDict(new_splits)
 
 
+import os
+import pyarrow as pa
+from pyarrow.lib import ArrowInvalid
+from datasets import DatasetDict
+from tqdm import tqdm
+
+def add_column_filename(dataset, col_audio="audio", col_name="filename", prefix=None, map_batch_size=1024):
+    """
+    Add a 'filename' column to each split in a DatasetDict.
+    - If audio has valid paths, use basenames.
+    - If no paths exist at all, generate synthetic IDs
+      (00001.wav, sample_00001.wav, etc.).
+    - Tries fast add_column with pyarrow.large_string.
+    - Falls back to batched map if ArrowInvalid offset overflow occurs.
+    """
+    new_splits = {}
+    for split in tqdm(dataset, desc="Adding filename"):
+        dset = dataset[split]
+
+        if col_name in dset.column_names:
+            new_splits[split] = dset
+            continue
+
+        # Peek first example → check if audio paths exist
+        first_ex = dset[0][col_audio]
+        if isinstance(first_ex, dict):
+            has_path = bool(first_ex.get("path"))
+        else:
+            has_path = bool(dset.features[col_audio].decode_example(first_ex).get("path"))
+
+        if not has_path:
+            # generate synthetic IDs
+            width = len(str(len(dset)))
+            if prefix is None:
+                filenames = [f"{i:0{width}d}.wav" for i in range(len(dset))]
+            else:
+                filenames = [f"{prefix}_{i:0{width}d}.wav" for i in range(len(dset))]
+        else:
+            # extract basenames
+            filenames = []
+            for ex in dset:
+                audio_val = ex[col_audio]
+                if isinstance(audio_val, dict):
+                    path = audio_val.get("path", None)
+                else:
+                    path = dset.features[col_audio].decode_example(audio_val).get("path", None)
+                filenames.append(os.path.basename(path) if path else "")
+
+        # Try fast add_column
+        try:
+            values = pa.array(filenames, type=pa.large_string())
+            new_splits[split] = dset.add_column(col_name, values)
+            continue
+        except ArrowInvalid:
+            print(f"[WARN] Fallback to map for split '{split}' (ArrowInvalid offset overflow).")
+        except Exception as e:
+            print(f"[WARN] Fallback to map for split '{split}' due to error: {e}")
+
+        # Fallback: batched map
+        def _add_col(batch, offset=0):
+            length = len(next(iter(batch.values())))
+            sub_filenames = filenames[offset:offset+length]
+            return {col_name: sub_filenames}
+
+        dset = dset.map(
+            _add_col,
+            with_indices=False,
+            batched=True,
+            batch_size=map_batch_size,
+            desc=f"Adding {col_name} (fallback map) to {split}"
+        )
+        new_splits[split] = dset
+
+    return DatasetDict(new_splits)
+
+
+
 from datasets import DatasetDict
 from tqdm import tqdm
 
