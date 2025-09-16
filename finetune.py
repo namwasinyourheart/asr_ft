@@ -324,7 +324,7 @@ def finetune(
             print("Merging model...")
             adapter_path = os.path.join(exp_variant_results_dir, 'adapter')
             base_model = load_whisper_model(model_args, device_args)
-            processor = load_processor(model_args, device_args)
+            processor = load_processor(model_args)
             
             from peft import PeftModel
             finetuned_model = PeftModel.from_pretrained(base_model, adapter_path)
@@ -578,12 +578,13 @@ def main():
 
     # Loading model and processor
     model = load_whisper_model(model_args, device_args)
-    model.config.forced_decoder_ids = None
-    model.config.suppress_tokens = []
 
     if model_args.adapter_path:
         from peft import PeftModel
         model = PeftModel.from_pretrained(model, model_args.adapter_path)
+
+    model.config.forced_decoder_ids = None
+    model.config.suppress_tokens = []
     
     processor = load_processor(model_args)
     
