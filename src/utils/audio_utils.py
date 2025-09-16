@@ -331,6 +331,34 @@ def add_column_datasetname(dataset, ds_name, add_col_dsname_batch_size, col_name
 #     return DatasetDict(new_splits)
 
 
+from datasets import DatasetDict
+from tqdm import tqdm
+import pyarrow as pa
+
+def add_column_datasetname(dataset, ds_name, col_name="dataset_name"):
+    """
+    Add a dataset_name column to each split in a DatasetDict.
+    Uses pyarrow.array for memory-efficient constant column creation.
+    """
+    if ds_name is None:
+        return dataset
+
+    new_splits = {}
+    for split in tqdm(dataset, desc="Adding dataset_name"):
+        dset = dataset[split]
+
+        if col_name in dset.column_names:
+            new_splits[split] = dset
+            continue
+
+        # tạo constant column bằng pyarrow (nhẹ hơn list Python)
+        values = pa.array([ds_name] * len(dset))
+        new_splits[split] = dset.add_column(col_name, values)
+
+    return DatasetDict(new_splits)
+
+
+
 def get_sid2meta(dataset, 
                  fields=("filename", "dialect", "province_name", "gender"), 
                  splits=None):
