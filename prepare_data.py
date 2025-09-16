@@ -624,6 +624,49 @@ def unify_sample_id_dtype(dataset_dict, dtype="string"):
             dataset_dict[split] = dataset_dict[split].cast_column("sample_id", hf_dtype)
     return dataset_dict
 
+from datasets import Value
+from pyarrow.lib import ArrowInvalid
+
+def unify_sample_id_dtype(dataset_dict, dtype="string", map_batch_size=1024):
+    """
+    Ensure 'sample_id' column has consistent dtype across splits.
+    - Tries fast cast_column.
+    - Falls back to batched map if ArrowInvalid offset overflow occurs.
+    """
+    hf_dtype = Value(dtype)
+
+    new_splits = {}
+    for split, dset in dataset_dict.items():
+        if "sample_id" not in dset.column_names:
+            new_splits[split] = dset
+            continue
+
+        # --- Fast path: cast_column
+        try:
+            new_splits[split] = dset.cast_column("sample_id", hf_dtype)
+            continue
+        except ArrowInvalid:
+            print(f"[WARN] Fallback to map for split '{split}' (ArrowInvalid offset overflow).")
+        except Exception as e:
+            print(f"[WARN] Fallback to map for split '{split}' due to error: {e}")
+
+        # --- Fallback: batched map
+        def _cast_ids(batch):
+            return {"sample_id": [str(x) if dtype == "string" else x for x in batch["sample_id"]]}
+
+        dset = dset.map(
+            _cast_ids,
+            batched=True,
+            batch_size=map_batch_size,
+            desc=f"Casting sample_id (fallback map) in {split}"
+        )
+
+        # Make sure column type is properly declared
+        dset = dset.cast_column("sample_id", hf_dtype)
+        new_splits[split] = dset
+
+    return type(dataset_dict)(new_splits)
+
 
 def prepare_multi_data(exp_args, data_args, model_args, device_args):
     """
@@ -723,7 +766,8 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
             # print("dataset after add filename:", dataset.column_names)
 
 
-            dataset = unify_sample_id_dtype(dataset, dtype="string")
+            # dataset = unify_sample_id_dtype(dataset, dtype="string")
+            dataset = unify_sample_id_dtype(dataset, dtype="string", map_batch_size=data_args.unify_sample_id_dtype_batch_size)
 
             for split in dataset.keys():
                 # print("len split", split, ":", len(dataset[split]))
