@@ -1,0 +1,223 @@
+exp_manager:
+  prj_name: vnpost_asr_ft
+  exp_name: "merge_ds_openai_whisper-large-v3-turbo"
+  exp_variant: "prepare_data"
+  exp_notes: "vlsp2020, vivos, commonvoice_vi_21, vimd, lsvsc, fleurs, fpt_fosd, infore1_25hours"
+  # prefix_fn: "toy"
+  seed: 202508
+  task_name: 'vi_asr'
+  dataset_name: 
+  model_name: 'openai/whisper-large-v3-turbo'
+  phase_name: 'eval'
+  print_cfg: true
+  exps_dir: 'exps'
+  print_model: true
+  print_processor: false
+  print_trainable_parameters: true
+  print_parameter_datatypes: true
+  print_peft_config: true
+  print_device: true
+  print_training_args: false
+  exp_tracking_tool: "wandb"
+  wandb:
+    project: vnpost_asr_ft
+    log_artifact: false
+
+data:
+  continue_prep: true
+  prepared_data_dir: ""
+  root_data_dir: "/data/nampv1/merged_ds"
+  hf_raw_data_dir: "/data/nampv1/merged_ds/raw/hf"
+
+  do_merge: true
+  datasets:
+    - name: vlsp2020
+      hf_raw_data_dir: "/data/nampv1/ASR-VLSP2020-VINAI-100H/raw/hf"
+      use_existing_hfds: true
+      do_split: true
+      test_ratio: 0.1
+      val_ratio: 0.1
+      subset_ratio: 1
+      save_hfds: false
+
+    - name: vivos
+      dataset_script_path: prepare_data/vivos_hfds/vivos.py
+      dataset_source_dir: "/data/nampv1/ASR-VIVOS-HCMUS-15H/raw/vivos"
+      hf_raw_data_dir: "/data/nampv1/ASR-VIVOS-HCMUS-15H/raw/hf"
+      use_existing_hfds: false
+      do_split: true
+      test_ratio: 0.1
+      val_ratio: 0.1
+      subset_ratio: 1
+      save_hfds: true
+
+    - name: commonvoice_vi_21
+      dataset_script_path: prepare_data/commonvoice_22_vi_hfds/commonvoice_22_vi.py
+      dataset_source_dir: "/data/nampv1/ASR-CommonVoice22Vi-21H/raw/cv-corpus-22.0-2025-06-20/vi"
+      hf_raw_data_dir: "/data/nampv1/ASR-CommonVoice22Vi-21H/raw/hf"
+      use_existing_hfds: false
+      do_split: false
+      test_ratio: 0.1
+      val_ratio: 0.1
+      subset_ratio:  1
+      save_hfds: true
+
+    - name: vimd
+      hf_raw_data_dir: "/data/nampv1/vnpost-asr/ViMD/raw"
+      use_existing_hfds: true
+      do_split: true
+      test_ratio: 0.1
+      val_ratio: 0.1
+      subset_ratio: 1
+      save_hfds: false
+
+    - name: lsvsc
+      hf_raw_data_dir: "/data/nampv1/vnpost-asr/LSVSC/raw"
+      use_existing_hfds: true
+      do_split: true
+      test_ratio: 0.1
+      val_ratio: 0.1
+      subset_ratio: 1
+      save_hfds: false
+
+
+    - name: fleurs
+      hf_raw_data_dir: "/data/nampv1/ASR-FLEURS/raw/hf"
+      use_existing_hfds: true
+      do_split: true
+      test_ratio: 0.1
+      val_ratio: 0.1
+      subset_ratio: 1
+      save_hfds: false
+
+    - name: fpt_fosd
+      hf_raw_data_dir: "/data/nampv1/ASR-FOSD-FPT/raw/hf"
+      use_existing_hfds: true
+      do_split: true
+      test_ratio: 0.1
+      val_ratio: 0.1
+      subset_ratio: 1
+      save_hfds: false
+
+
+    - name: infore1_25hours
+      hf_raw_data_dir: "/data/nampv1/ASR-INFOR1-25H/raw/hf"
+      use_existing_hfds: true
+      do_split: true
+      test_ratio: 0.1
+      val_ratio: 0.1
+      subset_ratio: 1
+      save_hfds: false
+
+  save_hfds: false
+  do_shard_for_feature_computation: false
+  streaming: false
+  columns_to_retain: ["sample_id", "audio", "text", "filename"]
+  subset_ratio: 1
+  do_split: true
+  val_ratio: 0.1
+  test_ratio: 0.1
+  do_save: true
+  do_show: false
+  prepared_data_dirname: prepared_data
+  num_proc: 1
+  batch_size: 1000
+  num_shards: 40
+  writer_batch_size: 4000
+
+
+model: 
+  model_type: "ASR"
+  pretrained_model_name_or_path: "openai/whisper-large-v3-turbo"
+  pretrained_processor_name_or_path: 
+  load_in_4bit: false
+  load_in_8bit: false
+  bnb_4bit_compute_dtype: null
+  bnb_4bit_quant_type: "nf4"
+  bnb_4bit_use_double_quant: false
+  bnb_4bit_quant_storage: "uint8"
+  torch_dtype: float16
+  attn_implementation: null
+  device_map: null
+  low_cpu_mem_usage: null
+  adapter_path: 
+
+train:
+    use_peft: true
+    lora:
+      r: 32
+      lora_alpha: 64
+      lora_dropout: 0.05
+      bias: none
+      task_type: 
+      inference_mode: false
+      target_modules: ["q_proj", "v_proj"]
+      # target_modules: ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+      modules_to_save: []
+
+
+    merge_after_train: true
+    train_n_samples: -1
+    val_n_samples: -1
+    test_n_samples: -1
+
+    do_resume_from_checkpoint: false
+
+    train_metric_filename: 'train_metrics.json'
+    eval_metrics: ['wer']
+
+    early_stopping_patience: 10
+
+    train_args:
+      _target_: transformers.Seq2SeqTrainingArguments
+      resume_from_checkpoint: 
+      do_train: true
+      do_eval: true
+      do_predict: true
+      learning_rate: 1e-5
+      # warmup_steps: 500
+      warmup_ratio: 0.05
+      num_train_epochs: 3
+      # max_steps: 1
+      per_device_train_batch_size: 128
+      # gradient_accumulation_steps=1
+      per_device_eval_batch_size: 192
+      # logging_strategy: "no"
+      logging_steps: 1
+      logging_first_step: true
+      save_strategy: steps
+      save_steps: 100
+      eval_strategy: steps
+      eval_steps: 100
+      eval_accumulation_steps: 1
+      eval_on_start: true
+      use_cpu: false
+      report_to: None
+      remove_unused_columns: false
+      fp16: true
+      save_safetensors: true
+      load_best_model_at_end: true 
+      greater_is_better: false 
+      metric_for_best_model: "wer"
+      
+
+generate:
+  # max_new_tokens: 440
+  num_beams: 1
+  condition_on_prev_tokens: False
+  compression_ratio_threshold: 1.35 
+  temperature: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+  logprob_threshold: -1.0
+  no_speech_threshold: 0.6
+  return_timestamps: True
+
+
+evaluate:
+  batch_size: 128
+  break_step: -1
+  metric_filename: 'test_metrics.txt'
+  prediction_filename: 'test_predictions.txt'
+  result_filename: 'test_result.txt'
+
+device:
+  use_cpu: False
