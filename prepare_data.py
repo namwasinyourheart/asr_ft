@@ -858,7 +858,8 @@ def ensure_gender_is_string(ds, map_batch_size=1024):
         desc="normalize gender to str"
     )
     # cast ở đây an toàn vì dữ liệu đã là string object rồi
-    ds = ds.cast({"gender": Value("string")})
+    # ds = ds.cast({"gender": Value("string")})
+    ds = ds.cast_column("gender", Value("string"))
     return ds
 
 
