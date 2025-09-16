@@ -37,7 +37,7 @@ import torch
 from dataclasses import dataclass
 from typing import Any, Dict, List, Union
 
-from prepare_data import prepare_data
+from prepare_data import prepare_data, prepare_multi_data
 
 @dataclass
 class DataCollatorSpeechSeq2SeqWithPadding:
@@ -557,9 +557,15 @@ def main():
     set_seed(exp_args.seed)
 
     # Load dataset
-    dataset, id2meta = prepare_data(exp_args, data_args, model_args, device_args)
+    # dataset, id2meta = prepare_data(exp_args, data_args, model_args, device_args)
 
-    train_ds, val_ds, test_ds = dataset['train'], dataset['val'], dataset['test']
+    if data_args.do_merge:
+        prepared_dataset, all_sid2meta = prepare_multi_data(exp_args, data_args, model_args, device_args)
+    else:
+        prepared_dataset, all_sid2meta = prepare_data(exp_args, data_args, model_args, device_args)
+
+
+    train_ds, val_ds, test_ds = prepared_dataset['train'], prepared_dataset['val'], prepared_dataset['test']
 
     if train_args.train_n_samples:
         train_ds = get_data_subset(train_args.train_n_samples, train_ds, exp_args.seed)
