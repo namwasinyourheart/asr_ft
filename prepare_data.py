@@ -791,6 +791,9 @@ def force_all_strings(ds, target="string", map_batch_size=1024):
 
     return ds
 
+from datasets import Audio, Value, ClassLabel
+from pyarrow.lib import ArrowInvalid
+
 def normalize_schema(ds, map_batch_size=1024):
     # Ép audio về schema chuẩn
     if "audio" in ds.column_names:
@@ -801,13 +804,28 @@ def normalize_schema(ds, map_batch_size=1024):
         except Exception as e:
             print(f"[WARN] Error casting 'audio': {e}")
             
-    # Xóa cột 'gender' để tránh lỗi
+    # Xử lý cột 'gender' để đồng nhất schema
     if "gender" in ds.column_names:
-        print("[INFO] Removing 'gender' column to resolve schema mismatch.")
-        ds = ds.remove_columns("gender")
+        # Chuyển đổi bất kỳ kiểu dữ liệu nào của 'gender' thành chuỗi
+        def _cast_gender_to_string(batch):
+            return {"gender": [str(x) for x in batch["gender"]]}
+
+        ds = ds.map(
+            _cast_gender_to_string,
+            batched=True,
+            batch_size=map_batch_size,
+            desc="Casting gender to string (safe)"
+        )
+        
+        # Gán lại schema để đảm bảo đúng là kiểu string
+        ds = ds.cast_column("gender", Value("string"))
+    else:
+        # Nếu dataset không có cột 'gender', thêm cột này với giá trị mặc định
+        print("[INFO] Adding 'gender' column with default 'na' value.")
+        ds = ds.add_column("gender", ["na"] * len(ds))
+        ds = ds.cast_column("gender", Value("string"))
 
     return ds
-
 
 
 def prepare_multi_data(exp_args, data_args, model_args, device_args):
@@ -953,7 +971,7 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
             new_list = [normalize_schema(d, map_batch_size=data_args.add_col_dsname_batch_size) for d in ds_list]
 
             # Force all string-like columns to a unified "string" dtype to prevent "large_string" issues.
-            # new_list = [force_all_strings(d, map_batch_size=data_args.add_col_dsname_batch_size) for d in new_list]
+            new_list = [force_all_strings(d, map_batch_size=data_args.add_col_dsname_batch_size) for d in new_list]
 
             # Now, concatenate the datasets with unified schemas.
             merged_dataset[split] = concatenate_datasets(new_list)
