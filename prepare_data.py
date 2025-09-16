@@ -984,6 +984,8 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
 
         print("merged_dataset:", merged_dataset)
         print("merged_dataset keys:", merged_dataset.keys())
+        for split, ds in merged_dataset.items():
+            print("split:", split, "ds:", ds)
 
         # for split, ds_list in merged_dataset.items():
         #     # Chuẩn hóa schema audio cho từng dataset trong list
