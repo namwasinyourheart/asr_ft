@@ -53,27 +53,65 @@ def unify_colnames(dataset, col_mapping=None):
 
 from datasets import Dataset, DatasetDict
 
+# def unify_splitnames(dataset, split_mapping=None):
+#     """
+#     Normalize split names in a DatasetDict based on a mapping.
+    
+#     Args:
+#         dataset (Dataset or DatasetDict): HF dataset object
+#         split_mapping (dict): mapping {old_split: new_split}
+    
+#     Returns:
+#         DatasetDict: with renamed splits
+#     """
+#     if split_mapping is None:
+#         split_mapping = {
+#             "validation": "val",
+#             "valid": "val",
+#             "dev": "val",
+#             "eval": "val"
+#         }
+
+#     if isinstance(dataset, Dataset):
+#         # single Dataset doesn't have multiple splits
+#         return dataset
+
+#     elif isinstance(dataset, DatasetDict):
+#         new_ds = DatasetDict()
+#         for split, ds in dataset.items():
+#             new_name = split_mapping.get(split, split)
+#             if new_name in new_ds:
+#                 # merge if multiple splits map to same target
+#                 new_ds[new_name] = new_ds[new_name].concatenate(ds)
+#             else:
+#                 new_ds[new_name] = ds
+#         return new_ds
+
+#     else:
+#         raise TypeError("Input must be a Dataset or DatasetDict")
+
+from datasets import Dataset, DatasetDict, concatenate_datasets
+
 def unify_splitnames(dataset, split_mapping=None):
     """
-    Normalize split names in a DatasetDict based on a mapping.
+    Normalize split names in a DatasetDict so that all validation-like splits become 'val'.
     
     Args:
         dataset (Dataset or DatasetDict): HF dataset object
         split_mapping (dict): mapping {old_split: new_split}
     
     Returns:
-        DatasetDict: with renamed splits
+        DatasetDict
     """
     if split_mapping is None:
         split_mapping = {
             "validation": "val",
             "valid": "val",
             "dev": "val",
-            "eval": "val"
+            "eval": "val",
         }
 
     if isinstance(dataset, Dataset):
-        # single Dataset doesn't have multiple splits
         return dataset
 
     elif isinstance(dataset, DatasetDict):
@@ -81,8 +119,7 @@ def unify_splitnames(dataset, split_mapping=None):
         for split, ds in dataset.items():
             new_name = split_mapping.get(split, split)
             if new_name in new_ds:
-                # merge if multiple splits map to same target
-                new_ds[new_name] = new_ds[new_name].concatenate(ds)
+                new_ds[new_name] = concatenate_datasets([new_ds[new_name], ds])
             else:
                 new_ds[new_name] = ds
         return new_ds
@@ -91,9 +128,45 @@ def unify_splitnames(dataset, split_mapping=None):
         raise TypeError("Input must be a Dataset or DatasetDict")
 
 
+
+# def add_sample_id(dataset, col_name="sample_id"):
+#     """
+#     Add a sequential sample_id column to each split in a DatasetDict,
+#     and move it to the first column. Skips if the column already exists.
+
+#     Args:
+#         dataset (DatasetDict): HuggingFace DatasetDict
+#         col_name (str): name of the new column
+
+#     Returns:
+#         DatasetDict: new DatasetDict with sample_id column added
+#     """
+#     new_splits = {}
+#     for split in tqdm(dataset, desc="Adding sample_id"):
+#         ds_split = dataset[split]
+        
+#         # Skip if sample_id already exists
+#         if col_name in ds_split.column_names:
+#             new_splits[split] = ds_split
+#             continue
+
+#         # Create the sample_id column
+#         sample_ids = list(range(len(ds_split)))
+#         ds_split = ds_split.add_column(col_name, sample_ids)
+
+#         # Reorder columns to place sample_id first
+#         all_cols = ds_split.column_names
+#         reordered_cols = [col_name] + [c for c in all_cols if c != col_name]
+#         ds_split = ds_split.select_columns(reordered_cols)
+
+#         new_splits[split] = ds_split
+
+#     return DatasetDict(new_splits)
+
+
 def add_sample_id(dataset, col_name="sample_id"):
     """
-    Add a sequential sample_id column to each split in a DatasetDict,
+    Add a sequential sample_id column with optional dataset_name prefix to each split in a DatasetDict,
     and move it to the first column. Skips if the column already exists.
 
     Args:
@@ -106,14 +179,20 @@ def add_sample_id(dataset, col_name="sample_id"):
     new_splits = {}
     for split in tqdm(dataset, desc="Adding sample_id"):
         ds_split = dataset[split]
-        
+
         # Skip if sample_id already exists
         if col_name in ds_split.column_names:
             new_splits[split] = ds_split
             continue
 
-        # Create the sample_id column
-        sample_ids = list(range(len(ds_split)))
+        # Determine prefix from dataset_name if available
+        if "dataset_name" in ds_split.column_names and len(ds_split["dataset_name"]) > 0 and ds_split["dataset_name"][0] is not None:
+            prefix = f"{ds_split['dataset_name'][0]}_"
+        else:
+            prefix = ""
+
+        # Create the sample_id column with optional prefix
+        sample_ids = [f"{prefix}{i}" for i in range(len(ds_split))]
         ds_split = ds_split.add_column(col_name, sample_ids)
 
         # Reorder columns to place sample_id first
@@ -187,6 +266,71 @@ def add_column_filename(dataset, col_audio="audio", col_name="filename", prefix=
     return DatasetDict(new_splits)
 
 
+from datasets import DatasetDict
+from tqdm import tqdm
+
+def add_column_datasetname(dataset, ds_name, col_name="dataset_name"):
+    """
+    Add a dataset_name column to each split in a DatasetDict.
+    - Skips if the column already exists.
+    - Uses batched map for efficiency.
+    
+    Args:
+        dataset (DatasetDict): HuggingFace DatasetDict
+        ds_name (str|None): dataset name to fill
+        col_name (str): column name to add (default "dataset_name")
+
+    Returns:
+        DatasetDict: with dataset_name column added
+    """
+    if ds_name is None:
+        return dataset  # skip if no name
+
+    new_splits = {}
+    for split in tqdm(dataset, desc="Adding dataset_name"):
+        dset = dataset[split]
+
+        if col_name in dset.column_names:
+            new_splits[split] = dset
+            continue
+
+        dset = dset.map(
+            lambda batch: {col_name: [ds_name] * len(batch[col_name if col_name in batch else next(iter(batch))])},
+            batched=True,
+            batch_size=500,
+            desc=f"Adding {col_name} to {split}"
+        )
+
+        new_splits[split] = dset
+
+    return DatasetDict(new_splits)
+
+# from datasets import DatasetDict
+# from tqdm import tqdm
+
+# def add_column_datasetname(dataset, ds_name, col_name="dataset_name"):
+#     """
+#     Add a dataset_name column to each split in a DatasetDict.
+#     Uses add_column (fast) instead of map.
+#     """
+#     if ds_name is None:
+#         return dataset
+
+#     new_splits = {}
+#     for split in tqdm(dataset, desc="Adding dataset_name"):
+#         dset = dataset[split]
+
+#         if col_name in dset.column_names:
+#             new_splits[split] = dset
+#             continue
+
+#         # Precompute the values just once
+#         values = [ds_name] * len(dset)
+#         new_splits[split] = dset.add_column(col_name, values)
+
+#     return DatasetDict(new_splits)
+
+
 def get_sid2meta(dataset, 
                  fields=("filename", "dialect", "province_name", "gender"), 
                  splits=None):
@@ -209,6 +353,34 @@ def get_sid2meta(dataset,
 
     sid2meta = {}
     for split in splits:
+        split_meta = {}
+        for ex in tqdm(dataset[split], desc=f"Processing {split}"):
+            meta = {field: ex[field] for field in valid_fields}
+            split_meta[ex["sample_id"]] = meta
+        sid2meta[split] = split_meta
+
+    return sid2meta
+def get_sid2meta(dataset, 
+                 fields=("filename", "dialect", "province_name", "gender"), 
+                 splits=None):
+    """
+    Build id2meta dictionary from dataset, grouped by split.
+    Handles splits with different schemas.
+
+    Returns:
+        dict: {split: {sample_id: {field: value, ...}}}
+    """
+    splits = list(splits or dataset.keys())
+
+    sid2meta = {}
+    for split in splits:
+        ds_fields = set(dataset[split].column_names)
+        valid_fields = [f for f in fields if f in ds_fields]
+
+        missing_fields = set(fields) - ds_fields
+        if missing_fields:
+            print(f"Split '{split}' missing fields: {missing_fields} -> ignored")
+
         split_meta = {}
         for ex in tqdm(dataset[split], desc=f"Processing {split}"):
             meta = {field: ex[field] for field in valid_fields}
