@@ -611,6 +611,44 @@ def normalize_schema(ds):
     return ds
 
 
+from datasets import Audio, Value
+from pyarrow.lib import ArrowInvalid
+
+def normalize_schema(ds, map_batch_size=1024):
+    # ép audio về schema chuẩn
+    if "audio" in ds.column_names:
+        try:
+            ds = ds.cast_column("audio", Audio(sampling_rate=16000))
+        except ArrowInvalid:
+            print("[WARN] Offset overflow casting 'audio', fallback skip cast.")
+        except Exception as e:
+            print(f"[WARN] Error casting 'audio': {e}")
+
+    # ép gender về string nếu tồn tại
+    if "gender" in ds.column_names:
+        try:
+            ds = ds.cast_column("gender", Value("string"))
+        except ArrowInvalid:
+            print("[WARN] Offset overflow casting 'gender', fallback to map().")
+
+            def _cast_gender(batch):
+                return {"gender": [str(x) for x in batch["gender"]]}
+
+            ds = ds.map(
+                _cast_gender,
+                batched=True,
+                batch_size=map_batch_size,
+                desc="Casting gender (fallback)"
+            )
+            # không cần cast lại nữa vì đã str()
+
+        except Exception as e:
+            print(f"[WARN] Error casting 'gender': {e}")
+
+    return ds
+
+
+
 
 from datasets import DatasetDict
 
@@ -667,7 +705,7 @@ def unify_sample_id_dtype(dataset_dict, dtype="string", map_batch_size=1024):
             batch_size=map_batch_size,
             desc=f"Casting sample_id in {split} (fallback)"
         )
-        
+
         new_splits[split] = dset
 
     return DatasetDict(new_splits)
@@ -796,8 +834,11 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
         for split, ds_list in merged_dataset.items():
             # Chuẩn hóa schema audio cho từng dataset trong list
             # new_list = [d.cast_column("audio", Audio(sampling_rate=None)) for d in ds_list]
-            new_list = [normalize_schema(d) for d in ds_list]
+            # new_list = [normalize_schema(d) for d in ds_list]
+            new_list = [normalize_schema(d, map_batch_size=data_args.add_col_dsname_batch_size) for d in ds_list]
+
             merged_dataset[split] = concatenate_datasets(new_list)
+
 
         # print("merged_dataset:", merged_dataset)
 
