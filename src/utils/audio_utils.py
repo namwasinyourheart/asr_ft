@@ -358,6 +358,68 @@ def add_column_datasetname(dataset, ds_name, col_name="dataset_name"):
     return DatasetDict(new_splits)
 
 
+from datasets import DatasetDict
+from tqdm import tqdm
+import pyarrow as pa
+
+def add_column_datasetname(dataset, ds_name, col_name="dataset_name"):
+    """
+    Add a dataset_name column to each split in a DatasetDict.
+    - Tries a memory-efficient pyarrow.large_string column.
+    - Calls flatten_indices() to reduce chunk fragmentation.
+    - Falls back to plain Python list if Arrow throws an error.
+    """
+    if ds_name is None:
+        return dataset
+
+    new_splits = {}
+    for split in tqdm(dataset, desc="Adding dataset_name"):
+        dset = dataset[split]
+
+        if col_name in dset.column_names:
+            new_splits[split] = dset
+            continue
+
+        # Try to reduce fragment/chunk issues first
+        try:
+            dset = dset.flatten_indices()
+        except Exception:
+            # ignore if flattening not needed or fails
+            pass
+
+        n = len(dset)
+        # Preferred: use large_string to avoid 32-bit offset overflow
+        try:
+            values = pa.array([ds_name] * n, type=pa.large_string())
+            new_splits[split] = dset.add_column(col_name, values)
+            continue
+        except pa.lib.ArrowInvalid:
+            # fall through to next strategies
+            pass
+        except Exception:
+            # any other arrow error -> fallback later
+            pass
+
+        # Try chunked_array composed of a single large_string chunk
+        try:
+            chunk = pa.array([ds_name] * n, type=pa.large_string())
+            values = pa.chunked_array([chunk])
+            new_splits[split] = dset.add_column(col_name, values)
+            continue
+        except Exception:
+            pass
+
+        # Final, robust fallback: plain Python list (should always work)
+        try:
+            new_splits[split] = dset.add_column(col_name, [ds_name] * n)
+        except Exception as e:
+            # Last resort: raise with helpful message
+            raise RuntimeError(f"Failed to add column '{col_name}' to split '{split}': {e}")
+
+    return DatasetDict(new_splits)
+
+
+
 
 def get_sid2meta(dataset, 
                  fields=("filename", "dialect", "province_name", "gender"), 
