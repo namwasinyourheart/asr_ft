@@ -791,6 +791,23 @@ def force_all_strings(ds, target="string", map_batch_size=1024):
 
     return ds
 
+def normalize_schema(ds, map_batch_size=1024):
+    # Ép audio về schema chuẩn
+    if "audio" in ds.column_names:
+        try:
+            ds = ds.cast_column("audio", Audio(sampling_rate=16000, mono=True))
+        except ArrowInvalid:
+            print("[WARN] Offset overflow casting 'audio', fallback skip cast.")
+        except Exception as e:
+            print(f"[WARN] Error casting 'audio': {e}")
+            
+    # Xóa cột 'gender' để tránh lỗi
+    if "gender" in ds.column_names:
+        print("[INFO] Removing 'gender' column to resolve schema mismatch.")
+        ds = ds.remove_columns("gender")
+
+    return ds
+
 
 
 def prepare_multi_data(exp_args, data_args, model_args, device_args):
@@ -936,10 +953,12 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
             new_list = [normalize_schema(d, map_batch_size=data_args.add_col_dsname_batch_size) for d in ds_list]
 
             # Force all string-like columns to a unified "string" dtype to prevent "large_string" issues.
-            new_list = [force_all_strings(d, map_batch_size=data_args.add_col_dsname_batch_size) for d in new_list]
+            # new_list = [force_all_strings(d, map_batch_size=data_args.add_col_dsname_batch_size) for d in new_list]
 
             # Now, concatenate the datasets with unified schemas.
             merged_dataset[split] = concatenate_datasets(new_list)
+
+        
 
 
 
