@@ -675,8 +675,8 @@ def normalize_schema(ds, map_batch_size=1024):
                 batch_size=map_batch_size,
                 desc="Casting gender to string (safe)"
             )
-            # Sau khi map, gán lại schema để đảm bảo đúng
-            ds = ds.cast_column("gender", Value("string"))
+            # # Sau khi map, gán lại schema để đảm bảo đúng
+            # ds = ds.cast_column("gender", Value("string"))
 
     return ds
 
