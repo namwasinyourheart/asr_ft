@@ -507,7 +507,7 @@ def finetune1(
             print("Merging model...")
             adapter_path = os.path.join(exp_variant_results_dir, 'adapter')
             base_model = load_whisper_model(model_args, device_args)
-            processor = load_processor(model_args, device_args)
+            processor = load_processor(model_args)
             
             from peft import PeftModel
             finetuned_model = PeftModel.from_pretrained(base_model, adapter_path)
