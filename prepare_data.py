@@ -703,7 +703,7 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
             #             desc=f"Adding dataset_name to {split}"
             #         )
 
-            dataset = add_column_datasetname(dataset, ds_name)
+            dataset = add_column_datasetname(dataset, ds_name, data_args.add_col_dsname_batch_size)
 
             # print("dataset after add dataset_name:", dataset.column_names)
 
