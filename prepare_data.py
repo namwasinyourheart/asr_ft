@@ -897,6 +897,8 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
             # ]
             # merged_dataset[split] = concatenate_datasets(new_list)
 
+            merged_dataset[split] = concatenate_datasets(ds_list)
+
 
 
         # print("merged_dataset:", merged_dataset)
