@@ -7,7 +7,6 @@ import json
 
 import warnings
 
-from notebooks.explore_models import adapter_path
 import pandas as pd
 import numpy as np
 from torch.utils.data import DataLoader
