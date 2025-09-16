@@ -828,6 +828,41 @@ def normalize_schema(ds, map_batch_size=1024):
     return ds
 
 
+from datasets import Value
+
+def ensure_gender_is_string(ds, map_batch_size=1024):
+    # Nếu không có cột gender → thêm
+    if "gender" not in ds.column_names:
+        ds = ds.add_column("gender", ["na"] * len(ds))
+        return ds.cast({"gender": Value("string")})
+
+    def _to_str(batch):
+        col = []
+        for x in batch["gender"]:
+            if x is None:
+                col.append("na")
+            elif isinstance(x, str):
+                col.append(x)
+            else:
+                try:
+                    col.append(str(x))
+                except Exception:
+                    col.append("na")
+        return {"gender": col}
+
+    # Map từng batch → convert giá trị
+    ds = ds.map(
+        _to_str,
+        batched=True,
+        batch_size=map_batch_size,
+        desc="normalize gender to str"
+    )
+    # cast ở đây an toàn vì dữ liệu đã là string object rồi
+    ds = ds.cast({"gender": Value("string")})
+    return ds
+
+
+
 def prepare_multi_data(exp_args, data_args, model_args, device_args):
     """
     Load, split (if needed), optionally subset, normalize, and merge multiple datasets,
@@ -969,6 +1004,12 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
             # Chuẩn hóa schema audio cho từng dataset trong list
             # Normalize schema for each dataset in the list before concatenation.
             new_list = [normalize_schema(d, map_batch_size=data_args.add_col_dsname_batch_size) for d in ds_list]
+
+            # Convert gender về string an toàn
+            new_list = [
+                ensure_gender_is_string(d, map_batch_size=data_args.add_col_dsname_batch_size)
+                for d in new_list
+            ]
 
             # Force all string-like columns to a unified "string" dtype to prevent "large_string" issues.
             new_list = [force_all_strings(d, map_batch_size=data_args.add_col_dsname_batch_size) for d in new_list]
