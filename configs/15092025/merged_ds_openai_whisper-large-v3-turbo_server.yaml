@@ -102,7 +102,7 @@ data:
 
 
     - name: infore1_25hours
-      hf_raw_data_dir: "/data/nampv1/ASR-INFOR1-25H/raw/hf"
+      hf_raw_data_dir: "/data/nampv1/ASR-INFORE1-25H/raw/hf"
       use_existing_hfds: true
       do_split: true
       test_ratio: 0.1
