@@ -582,6 +582,7 @@ def main():
     if model_args.adapter_path:
         from peft import PeftModel
         model = PeftModel.from_pretrained(model, model_args.adapter_path)
+        model = model.merge_and_unload()
 
     model.config.forced_decoder_ids = None
     model.config.suppress_tokens = []
