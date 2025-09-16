@@ -982,7 +982,8 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
 
         print("=== Processing merged dataset ===")
 
-        # print("merged_dataset:", merged_dataset.keys())
+        print("merged_dataset:", merged_dataset)
+        print("merged_dataset keys:", merged_dataset.keys())
 
         # for split, ds_list in merged_dataset.items():
         #     # Chuẩn hóa schema audio cho từng dataset trong list
@@ -1000,6 +1001,8 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
         #     # merged_dataset[split] = concatenate_datasets(new_list)
 
         #     merged_dataset[split] = concatenate_datasets(ds_list)
+
+
 
         for split, ds_list in merged_dataset.items():
             # Chuẩn hóa schema audio cho từng dataset trong list
