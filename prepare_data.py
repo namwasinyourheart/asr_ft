@@ -647,7 +647,38 @@ def normalize_schema(ds, map_batch_size=1024):
 
     return ds
 
+from datasets import Audio, Value
+from pyarrow.lib import ArrowInvalid
 
+def normalize_schema(ds, map_batch_size=1024):
+    # Ép audio về schema chuẩn
+    if "audio" in ds.column_names:
+        try:
+            ds = ds.cast_column("audio", Audio(sampling_rate=16000, mono=True))
+        except ArrowInvalid:
+            print("[WARN] Offset overflow casting 'audio', fallback skip cast.")
+        except Exception as e:
+            print(f"[WARN] Error casting 'audio': {e}")
+
+    # Ép gender về string nếu tồn tại, bất kể dtype ban đầu là gì
+    if "gender" in ds.column_names:
+        # Sử dụng map để đảm bảo chuyển đổi thành string an toàn
+        def _cast_gender_to_string(batch):
+            return {"gender": [str(x) for x in batch["gender"]]}
+        
+        # Áp dụng map chỉ khi dtype không phải là string
+        if ds.features["gender"].dtype != "string":
+            print("[INFO] Casting 'gender' to string to unify schema.")
+            ds = ds.map(
+                _cast_gender_to_string,
+                batched=True,
+                batch_size=map_batch_size,
+                desc="Casting gender to string (safe)"
+            )
+            # Sau khi map, gán lại schema để đảm bảo đúng
+            ds = ds.cast_column("gender", Value("string"))
+
+    return ds
 
 
 from datasets import DatasetDict
@@ -909,6 +940,7 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
 
             # Now, concatenate the datasets with unified schemas.
             merged_dataset[split] = concatenate_datasets(new_list)
+
 
 
 
