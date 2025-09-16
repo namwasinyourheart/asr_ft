@@ -1,7 +1,7 @@
 exp_manager:
   prj_name: vnpost_asr_ft
   exp_name: "merge_ds_openai_whisper-large-v3-turbo"
-  exp_variant: "toy"
+  exp_variant: "prepare_data"
   exp_notes: "vlsp2020, vivos, commonvoice_vi_21, vimd, lsvsc, fleurs, fpt_fosd, infore1_25hours"
   # prefix_fn: "toy"
   seed: 202508
@@ -31,33 +31,33 @@ data:
 
   do_merge: true
   datasets:
-    # - name: vlsp2020
-    #   hf_raw_data_dir: "/media/nampv1/hdd/data/ASR-VLSP2020-VINAI-100H/raw/hf1"
-    #   use_existing_hfds: true
-    #   do_split: true
-    #   test_ratio: 0.1
-    #   val_ratio: 0.1
-    #   subset_ratio: 1
+    - name: vlsp2020
+      hf_raw_data_dir: "/media/nampv1/hdd/data/ASR-VLSP2020-VINAI-100H/raw/hf1"
+      use_existing_hfds: true
+      do_split: true
+      test_ratio: 0.1
+      val_ratio: 0.1
+      subset_ratio: 1
 
-    # - name: vivos
-    #   dataset_script_path: prepare_data/vivos_hfds/vivos.py
-    #   dataset_source_dir: "/media/nampv1/hdd/data/VIVOS/raw/vivos"
-    #   hf_raw_data_dir: "/media/nampv1/hdd/data/VIVOS/raw/hf"
-    #   use_existing_hfds: false
-    #   do_split: true
-    #   test_ratio: 0.1
-    #   val_ratio: 0.1
-    #   subset_ratio: 1
+    - name: vivos
+      dataset_script_path: prepare_data/vivos_hfds/vivos.py
+      dataset_source_dir: "/media/nampv1/hdd/data/VIVOS/raw/vivos"
+      hf_raw_data_dir: "/media/nampv1/hdd/data/VIVOS/raw/hf"
+      use_existing_hfds: false
+      do_split: true
+      test_ratio: 0.1
+      val_ratio: 0.1
+      subset_ratio: 1
 
-    # - name: commonvoice_vi_21
-    #   dataset_script_path: prepare_data/commonvoice_22_vi_hfds/commonvoice_22_vi.py
-    #   dataset_source_dir: "/media/nampv1/hdd/data/ASR-CommonVoice22Vi-21H/raw/cv-corpus-22.0-2025-06-20/vi"
-    #   hf_raw_data_dir: "/media/nampv1/hdd/data/ASR-CommonVoice22Vi-21H/raw/hf/"
-    #   use_existing_hfds: false
-    #   do_split: false
-    #   test_ratio: 0.1
-    #   val_ratio: 0.1
-    #   subset_ratio:  1
+    - name: commonvoice_vi_21
+      dataset_script_path: prepare_data/commonvoice_22_vi_hfds/commonvoice_22_vi.py
+      dataset_source_dir: "/media/nampv1/hdd/data/ASR-CommonVoice22Vi-21H/raw/cv-corpus-22.0-2025-06-20/vi"
+      hf_raw_data_dir: "/media/nampv1/hdd/data/ASR-CommonVoice22Vi-21H/raw/hf/"
+      use_existing_hfds: false
+      do_split: false
+      test_ratio: 0.1
+      val_ratio: 0.1
+      subset_ratio:  1
 
     - name: vimd
       hf_raw_data_dir: "/media/nampv1/hdd/data/vnpost-asr/ViMD/raw"
@@ -65,7 +65,7 @@ data:
       do_split: true
       test_ratio: 0.1
       val_ratio: 0.1
-      subset_ratio: 0.01
+      subset_ratio: 1
 
     - name: lsvsc
       hf_raw_data_dir: "/media/nampv1/hdd/data/vnpost-asr/LSVSC/raw"
@@ -73,7 +73,7 @@ data:
       do_split: true
       test_ratio: 0.1
       val_ratio: 0.1
-      subset_ratio: 0.01
+      subset_ratio: 1
 
 
     - name: fleurs
@@ -82,7 +82,7 @@ data:
       do_split: true
       test_ratio: 0.1
       val_ratio: 0.1
-      subset_ratio: 0.01
+      subset_ratio: 1
 
     - name: fpt_fosd
       hf_raw_data_dir: "/media/nampv1/hdd/data/ASR-FPT_FOSD/raw/hf"
@@ -90,7 +90,7 @@ data:
       do_split: true
       test_ratio: 0.1
       val_ratio: 0.1
-      subset_ratio: 0.01
+      subset_ratio: 1
 
     - name: infore1_25hours
       hf_raw_data_dir: "/media/nampv1/hdd/data/ASR-INFOR1_25hours/raw/hf"
@@ -98,7 +98,7 @@ data:
       do_split: true
       test_ratio: 0.1
       val_ratio: 0.1
-      subset_ratio: 0.01
+      subset_ratio: 1
       
 
   save_hfds: false
@@ -180,16 +180,18 @@ train:
       save_strategy: steps
       save_steps: 100
       eval_strategy: steps
-      eval_steps: 25
+      eval_steps: 100
       eval_accumulation_steps: 1
       eval_on_start: true
       use_cpu: false
       report_to: None
       remove_unused_columns: false
       fp16: true
+      save_safetensors: true
       load_best_model_at_end: true 
       greater_is_better: false 
       metric_for_best_model: "wer"
+      
 
 generate:
   # max_new_tokens: 440
