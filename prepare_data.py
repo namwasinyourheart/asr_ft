@@ -882,22 +882,33 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
 
         # print("merged_dataset:", merged_dataset.keys())
 
+        # for split, ds_list in merged_dataset.items():
+        #     # Chuẩn hóa schema audio cho từng dataset trong list
+        #     # new_list = [d.cast_column("audio", Audio(sampling_rate=None)) for d in ds_list]
+        #     # new_list = [normalize_schema(d) for d in ds_list]
+
+        #     # new_list = [normalize_schema(d, map_batch_size=data_args.add_col_dsname_batch_size) for d in ds_list]
+
+        #     # merged_dataset[split] = concatenate_datasets(new_list)
+
+        #     # new_list = [
+        #     #     force_all_strings(normalize_schema(d, map_batch_size=128))
+        #     #     for d in ds_list
+        #     # ]
+        #     # merged_dataset[split] = concatenate_datasets(new_list)
+
+        #     merged_dataset[split] = concatenate_datasets(ds_list)
+
         for split, ds_list in merged_dataset.items():
             # Chuẩn hóa schema audio cho từng dataset trong list
-            # new_list = [d.cast_column("audio", Audio(sampling_rate=None)) for d in ds_list]
-            # new_list = [normalize_schema(d) for d in ds_list]
+            # Normalize schema for each dataset in the list before concatenation.
+            new_list = [normalize_schema(d, map_batch_size=data_args.add_col_dsname_batch_size) for d in ds_list]
 
-            # new_list = [normalize_schema(d, map_batch_size=data_args.add_col_dsname_batch_size) for d in ds_list]
+            # Force all string-like columns to a unified "string" dtype to prevent "large_string" issues.
+            new_list = [force_all_strings(d, map_batch_size=data_args.add_col_dsname_batch_size) for d in new_list]
 
-            # merged_dataset[split] = concatenate_datasets(new_list)
-
-            # new_list = [
-            #     force_all_strings(normalize_schema(d, map_batch_size=128))
-            #     for d in ds_list
-            # ]
-            # merged_dataset[split] = concatenate_datasets(new_list)
-
-            merged_dataset[split] = concatenate_datasets(ds_list)
+            # Now, concatenate the datasets with unified schemas.
+            merged_dataset[split] = concatenate_datasets(new_list)
 
 
 
