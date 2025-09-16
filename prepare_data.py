@@ -732,6 +732,35 @@ def force_all_strings(ds, map_batch_size=1024):
     return ds
 
 
+def force_all_strings(ds, target="string", map_batch_size=1024):
+    """
+    Convert all string-like columns to uniform dtype without triggering offset overflow.
+    - Avoids pyarrow combine_chunks().
+    """
+    from datasets import Features, Value
+
+    target_value = Value(target)
+    new_features = ds.features.copy()
+
+    for col, feature in ds.features.items():
+        if isinstance(feature, Value) and feature.dtype in ("string", "large_string"):
+            new_features[col] = target_value
+
+    # map để ép dữ liệu thành string, batch nhỏ để không overflow
+    ds = ds.map(
+        lambda batch: {col: [str(x) if x is not None else "" for x in batch[col]] 
+                      for col, feat in new_features.items() if isinstance(feat, Value) and feat.dtype == target},
+        batched=True,
+        batch_size=map_batch_size,
+        desc="Force cast all string cols (safe mode)"
+    )
+
+    # gán lại features schema, nhưng KHÔNG ép combine_chunks
+    ds = ds.cast(new_features, batch_size=map_batch_size)
+
+    return ds
+
+
 
 def prepare_multi_data(exp_args, data_args, model_args, device_args):
     """
