@@ -30,6 +30,7 @@ data:
   hf_raw_data_dir: "/data/nampv1/merged_ds/raw/hf"
 
   do_merge: true
+  add_col_dsname_batch_size: 500
   datasets:
     - name: vlsp2020
       hf_raw_data_dir: "/data/nampv1/ASR-VLSP2020-VINAI-100H/raw/hf"
