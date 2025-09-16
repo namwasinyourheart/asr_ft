@@ -310,10 +310,21 @@ def process_dataset(dataset, processor, prepared_data_dir, data_args, exp_args):
     batch_compute_features_and_labels = batch_compute_features_and_labels_wrapper(processor)
 
     columns_to_retain = ["sample_id", "filename", "input_features", "labels"]
-    columns_to_remove = [
-        col for col in list(next(iter(dataset['test'])).keys())
-        if col not in columns_to_retain
-    ]
+    # columns_to_remove = [
+    #     col for col in list(next(iter(dataset['test'])).keys())
+    #     if col not in columns_to_retain
+    # ]
+
+    # def get_columns_to_remove(ds):
+    #     return [col for col in ds.column_names if col not in columns_to_retain]
+
+    def get_cols_to_remove(ds):
+        keep_cols = ["sample_id", "filename", "input_features", "labels"]
+        return [c for c in ds.column_names if c not in keep_cols]
+
+    # columns_to_remove = get_columns_to_remove(dataset)
+    # print("columns_to_remove:", columns_to_remove)
+
     if data_args.do_shard_for_feature_computation:
         process_sharded_dataset_dict(
             dataset,
@@ -323,24 +334,41 @@ def process_dataset(dataset, processor, prepared_data_dir, data_args, exp_args):
             batch_size=data_args.batch_size,
             num_proc=data_args.num_proc, 
             writer_batch_size=data_args.writer_batch_size, # 4000
-            columns_to_remove=columns_to_remove,
+            columns_to_remove=None,
             desc="Computing features and labels",
             force_clear=False,
         )
 
         dataset = load_sharded_dataset(prepared_data_dir)
+
     else:
         if not os.path.exists(prepared_data_dir):
-            # Normal .map() without sharding
-            dataset = dataset.map(
-                batch_compute_features_and_labels,
-                batched=True,
-                batch_size=data_args.batch_size,  # 4000
-                num_proc=data_args.num_proc, # 4
-                writer_batch_size=data_args.writer_batch_size,
-                remove_columns=columns_to_remove,
-                desc="Computing features and labels"
-            )
+            new_splits = {}
+            for split, ds in dataset.items():
+                cols_to_remove = get_cols_to_remove(ds)
+                new_splits[split] = ds.map(
+                    batch_compute_features_and_labels,
+                    batched=True,
+                    batch_size=data_args.batch_size,
+                    num_proc=data_args.num_proc,
+                    writer_batch_size=data_args.writer_batch_size,
+                    remove_columns=cols_to_remove,
+                    desc=f"Computing features and labels ({split})"
+                )
+            dataset = DatasetDict(new_splits)
+
+    # else:
+    #     if not os.path.exists(prepared_data_dir):
+    #         # Normal .map() without sharding
+    #         dataset = dataset.map(
+    #             batch_compute_features_and_labels,
+    #             batched=True,
+    #             batch_size=data_args.batch_size,  # 4000
+    #             num_proc=data_args.num_proc, # 4
+    #             writer_batch_size=data_args.writer_batch_size,
+    #             remove_columns=columns_to_remove,
+    #             desc="Computing features and labels"
+    #         )
         else: 
             dataset = load_from_disk(prepared_data_dir)
             return dataset
@@ -379,7 +407,7 @@ def prepare_metadata(dataset, common_processed_data_dir):
         all_sid2meta = load_dict_from_json(all_sid2meta_path)
     else:
         print(f"Generating all_sid2meta and saving to {all_sid2meta_path}")
-        all_sid2meta = get_sid2meta(dataset)
+        all_sid2meta = get_sid2meta(dataset, fields=("filename", "gender", "dialect", "province_name", "dataset_name"))
         save_dict_to_json(all_sid2meta, all_sid2meta_path)
 
     if os.path.exists(all_filename2sid_path):
@@ -518,7 +546,6 @@ def prepare_data(exp_args, data_args, model_args, device_args):
             )
 
         # Optionally subset
-        
         if data_args.subset_ratio and 0 < data_args.subset_ratio < 1:
             print("Subsetting dataset ...")
             dataset = DatasetDict({
@@ -547,7 +574,7 @@ def prepare_data(exp_args, data_args, model_args, device_args):
         all_sid2meta, all_filename2sid = prepare_metadata(dataset, common_processed_data_dir)
 
         # Save prepared dataset
-        print("Saving prepared dataset ...")
+        print("Saving prepared dataset ... to", prepared_data_dir)
         if not os.path.exists(prepared_data_dir): 
             prepared_dataset.save_to_disk(prepared_data_dir)
 
@@ -569,6 +596,202 @@ def prepare_data(exp_args, data_args, model_args, device_args):
 
     return prepared_dataset, all_sid2meta
 
+
+from datasets import DatasetDict, concatenate_datasets, load_from_disk
+import os
+from datasets import Audio, Value
+
+def normalize_schema(ds):
+    # ép audio về schema chuẩn
+    if "audio" in ds.column_names:
+        ds = ds.cast_column("audio", Audio(sampling_rate=16000))
+    # ép gender về string nếu tồn tại
+    if "gender" in ds.column_names:
+        ds = ds.cast_column("gender", Value("string"))
+    return ds
+
+
+
+from datasets import DatasetDict
+
+from datasets import Value
+from src.utils.audio_utils import add_column_datasetname
+
+def unify_sample_id_dtype(dataset_dict, dtype="string"):
+    hf_dtype = Value(dtype)  # convert string -> datasets type
+    for split in dataset_dict:
+        if "sample_id" in dataset_dict[split].column_names:
+            dataset_dict[split] = dataset_dict[split].cast_column("sample_id", hf_dtype)
+    return dataset_dict
+
+
+def prepare_multi_data(exp_args, data_args, model_args, device_args):
+    """
+    Load, split (if needed), optionally subset, normalize, and merge multiple datasets,
+    then preprocess into a unified prepared dataset.
+    Returns: prepared_dataset, all_sid2meta
+    """
+
+    root_data_dir = data_args.root_data_dir
+    common_processed_data_dir = getattr(data_args, "common_processed_data_dir", os.path.join(root_data_dir, "processed"))
+    exps_data_dir = getattr(data_args, "exps_data_dir", os.path.join(root_data_dir, "exps"))
+    
+    prepared_data_dir = (
+        data_args.prepared_data_dir
+        or os.path.join(exps_data_dir, f"{exp_args.exp_name}__{exp_args.exp_variant}")
+    )
+    print("prepared_data_dir:", prepared_data_dir)
+
+    if not os.path.exists(prepared_data_dir) or data_args.continue_prep:
+
+        merged_dataset = {}
+
+        # 1. Iterate over datasets declared in config
+        for ds_cfg in data_args.datasets:
+            ds_name = ds_cfg.get("name", "unknown")
+            hf_raw_data_dir = ds_cfg.get(
+                "hf_raw_data_dir",
+                os.path.join(root_data_dir, "raw", "hf", ds_name),
+            )
+            dataset_source_dir = ds_cfg.get("dataset_source_dir", None)
+            dataset_script_path = ds_cfg.get("dataset_script_path", None)
+            use_existing_hfds = ds_cfg.get("use_existing_hfds", True)
+
+            print(f"\n=== Loading dataset: {ds_name} ===")
+            if os.path.exists(hf_raw_data_dir) and use_existing_hfds:
+                print(f"Loading existing HF dataset from {hf_raw_data_dir}")
+                dataset = load_from_disk(hf_raw_data_dir)
+                # print("dataset after load from disk:", dataset.column_names)
+            else:
+                print(f"Creating HF dataset from {dataset_script_path}, {dataset_source_dir}")
+                dataset = create_hf_ds(
+                    dataset_script_path=dataset_script_path,
+                    data_dir=dataset_source_dir,
+                    save_dir=hf_raw_data_dir if ds_cfg.get("save_hfds", False) else None,
+                    streaming=ds_cfg.get("streaming", False),
+                )
+                # print("dataset after create hfd:", dataset.column_names)
+
+            # 2. Split dataset into train/dev/test if requested (per dataset)
+            do_split = ds_cfg.get("do_split", data_args.do_split)
+            if do_split:
+                print(f"Splitting dataset {ds_name} into train/dev/test ...")
+                dataset = make_splits(dataset, data_args.test_ratio, data_args.val_ratio, exp_args.seed)
+
+            # 3. Optionally subset this dataset before merging
+            subset_ratio = ds_cfg.get("subset_ratio", data_args.subset_ratio)
+            if subset_ratio and 0 < subset_ratio < 1:
+                print(f"Subsetting dataset {ds_name} with ratio={subset_ratio} ...")
+                dataset = DatasetDict({
+                    split: dataset[split]
+                        .shuffle(seed=exp_args.seed)
+                        .select(range(int(subset_ratio * len(dataset[split]))))
+                    for split in dataset.keys()
+                })
+
+                # print("dataset after subset:", dataset.column_names)
+
+            # 4. Add dataset_name column for traceability
+            # for split in dataset.keys():
+            #     dataset[split] = dataset[split].add_column("dataset_name", [ds_name] * len(dataset[split]))
+
+            # 4. Add dataset_name column for traceability
+            # for split in dataset.keys():
+            #     if "dataset_name" not in dataset[split].column_names:
+            #         dataset[split] = dataset[split].map(
+            #             lambda _: {"dataset_name": ds_name},
+            #             desc=f"Adding dataset_name to {split}"
+            #         )
+
+            dataset = add_column_datasetname(dataset, ds_name)
+
+            # print("dataset after add dataset_name:", dataset.column_names)
+
+            dataset = unify_colnames(dataset)
+            # print("dataset after unify colnames:", dataset.column_names)
+
+            dataset = unify_splitnames(dataset)
+            # print("dataset after unify splitnames:", dataset.column_names)
+
+            dataset = add_sample_id(dataset)
+            # print("dataset after add sample id:", dataset.column_names)
+
+            dataset = add_column_filename(dataset)
+            # print("dataset after add filename:", dataset.column_names)
+
+
+            dataset = unify_sample_id_dtype(dataset, dtype="string")
+
+            for split in dataset.keys():
+                # print("len split", split, ":", len(dataset[split]))
+                print("len split", split, ":", len(dataset[split]))
+
+            # print("len split train:", len(dataset["train"]))
+            # print("len split val:", len(dataset["val"]))
+            # print("len split test:", len(dataset["test"]))
+
+            # 5. Accumulate splits
+            for split in dataset.keys():
+                if split not in merged_dataset:
+                    merged_dataset[split] = []
+                merged_dataset[split].append(dataset[split])
+
+
+        print("=== Processing merged dataset ===")
+
+        # print("merged_dataset:", merged_dataset.keys())
+
+        for split, ds_list in merged_dataset.items():
+            # Chuẩn hóa schema audio cho từng dataset trong list
+            # new_list = [d.cast_column("audio", Audio(sampling_rate=None)) for d in ds_list]
+            new_list = [normalize_schema(d) for d in ds_list]
+            merged_dataset[split] = concatenate_datasets(new_list)
+
+        # print("merged_dataset:", merged_dataset)
+
+        # 6. Concatenate across datasets
+        # merged_dataset = DatasetDict({
+        #     split: concatenate_datasets(ds_list) for split, ds_list in merged_dataset.items()
+        # })
+        merged_dataset = DatasetDict(merged_dataset)
+        # print("merged_dataset:", merged_dataset)
+
+        # # 7. Cast audio column
+        # print("Casting audio column to 16kHz ...")
+        # merged_dataset = merged_dataset.cast_column("audio", Audio(sampling_rate=16000))
+
+        # 8. Load processor
+        print("Loading processor ...")
+        processor = load_processor(model_args)
+
+        # 9. Process dataset + metadata
+        print("Processing merged dataset ...")
+        prepared_dataset = process_dataset(merged_dataset, processor, prepared_data_dir, data_args, exp_args)
+        all_sid2meta, all_filename2sid = prepare_metadata(merged_dataset, os.path.join(root_data_dir, "processed"))
+
+        print("prepared_dataset:", prepared_dataset)
+
+        # 10. Save prepared dataset
+        if not os.path.exists(prepared_data_dir):
+            print("Saving prepared dataset ... to", prepared_data_dir)
+            prepared_dataset.save_to_disk(prepared_data_dir)
+    else:
+        # Load prepared dataset from disk
+        print("Loading prepared dataset from disk ...")
+        if data_args.do_shard_for_feature_computation:
+            prepared_dataset = load_sharded_dataset(prepared_data_dir)
+        else:
+            prepared_dataset = load_from_disk(prepared_data_dir)
+
+        # Load or create metadata if missing
+        print("Loading or creating metadata ...")
+        all_sid2meta, all_filename2sid = prepare_metadata(prepared_dataset, common_processed_data_dir)
+
+    # 11. Optionally show dataset examples
+    if data_args.do_show:
+        show_ds_examples(prepared_dataset)
+
+    return prepared_dataset, all_sid2meta
 
 
 
@@ -636,8 +859,14 @@ def main():
     # Set seed
     set_seed(exp_args.seed)
 
-    dataset, all_sid2meta = prepare_data(exp_args, data_args, model_args, device_args)
-    print(dataset)
+    if data_args.do_merge:
+        prepared_dataset, all_sid2meta = prepare_multi_data(exp_args, data_args, model_args, device_args)
+    else:
+        prepared_dataset, all_sid2meta = prepare_data(exp_args, data_args, model_args, device_args)
+
+    # dataset, all_sid2meta = prepare_data(exp_args, data_args, model_args, device_args)
+
+    print(prepared_dataset)
     print(all_sid2meta.keys())
     for split in all_sid2meta:
         print(f"{split}: {len(all_sid2meta[split])} sid2meta")
