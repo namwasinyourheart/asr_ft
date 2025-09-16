@@ -711,6 +711,28 @@ def unify_sample_id_dtype(dataset_dict, dtype="string", map_batch_size=1024):
     return DatasetDict(new_splits)
 
 
+from datasets import Dataset, DatasetDict, Value
+
+def force_all_strings(ds, map_batch_size=1024):
+    """
+    Convert all string-like columns (string, large_string) to Value("string").
+    """
+    for col, feature in ds.features.items():
+        if isinstance(feature, Value) and feature.dtype in ("string", "large_string"):
+            try:
+                ds = ds.cast_column(col, Value("string"))
+            except Exception:
+                # fallback khi overflow
+                ds = ds.map(
+                    lambda batch: {col: [str(x) for x in batch[col]]},
+                    batched=True,
+                    batch_size=map_batch_size,
+                    desc=f"Force cast {col} to string (fallback)"
+                )
+    return ds
+
+
+
 def prepare_multi_data(exp_args, data_args, model_args, device_args):
     """
     Load, split (if needed), optionally subset, normalize, and merge multiple datasets,
@@ -835,9 +857,17 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
             # Chuẩn hóa schema audio cho từng dataset trong list
             # new_list = [d.cast_column("audio", Audio(sampling_rate=None)) for d in ds_list]
             # new_list = [normalize_schema(d) for d in ds_list]
-            new_list = [normalize_schema(d, map_batch_size=data_args.add_col_dsname_batch_size) for d in ds_list]
 
+            # new_list = [normalize_schema(d, map_batch_size=data_args.add_col_dsname_batch_size) for d in ds_list]
+
+            # merged_dataset[split] = concatenate_datasets(new_list)
+
+            new_list = [
+                force_all_strings(normalize_schema(d, map_batch_size=data_args.add_col_dsname_batch_size))
+                for d in ds_list
+            ]
             merged_dataset[split] = concatenate_datasets(new_list)
+
 
 
         # print("merged_dataset:", merged_dataset)
