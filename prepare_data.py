@@ -767,7 +767,7 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
 
 
             # dataset = unify_sample_id_dtype(dataset, dtype="string")
-            dataset = unify_sample_id_dtype(dataset, dtype="string", map_batch_size=data_args.unify_sample_id_dtype_batch_size)
+            dataset = unify_sample_id_dtype(dataset, dtype="string", map_batch_size=data_args.add_col_dsname_batch_size)
 
             for split in dataset.keys():
                 # print("len split", split, ":", len(dataset[split]))
