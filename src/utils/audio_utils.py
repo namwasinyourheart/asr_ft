@@ -316,7 +316,7 @@ def add_column_filename(dataset, col_audio="audio", col_name="filename", prefix=
 
         # Try fast add_column
         try:
-            values = pa.array(filenames, type=pa.large_string())
+            values = pa.array(filenames, type=pa.string())
             new_splits[split] = dset.add_column(col_name, values)
             continue
         except ArrowInvalid:
@@ -471,7 +471,7 @@ def add_column_datasetname(dataset, ds_name, add_col_dsname_batch_size=1024, col
 
         # --- Fast path: pyarrow add_column
         try:
-            values = pa.array([ds_name] * n, type=pa.large_string())
+            values = pa.array([ds_name] * n, type=pa.string())
             new_splits[split] = dset.add_column(col_name, values)
             continue
         except ArrowInvalid:
