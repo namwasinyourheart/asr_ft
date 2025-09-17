@@ -372,6 +372,9 @@ def process_dataset(
         desc="Normalizing text...",
     )
 
+    # Compute features and labels
+    batch_fn = batch_compute_features_and_labels_wrapper(processor)
+
     if getattr(data_args, "do_shard_for_feature_computation", False):
         process_sharded_dataset_dict(
             dataset,
