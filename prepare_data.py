@@ -697,13 +697,13 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
         if "gender" in ds.column_names:
             ds = ds.map(lambda x: {"gender": str(x["gender"])})
 
-        # 3. Cast từng cột
-        for col, feat in features.items():
-            if col in ds.column_names:
-                try:
-                    ds = ds.cast_column(col, feat)
-                except Exception as e:
-                    print(f"[WARN] cast_column failed for {col}: {e}")
+        # # 3. Cast từng cột
+        # for col, feat in features.items():
+        #     if col in ds.column_names:
+        #         try:
+        #             ds = ds.cast_column(col, feat)
+        #         except Exception as e:
+        #             print(f"[WARN] cast_column failed for {col}: {e}")
 
         return ds
 
