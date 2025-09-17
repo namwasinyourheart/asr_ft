@@ -642,12 +642,30 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
             print("split:", split)
             print("ds_list:", ds_list)
 
-        # Normalize, cast, and concatenate per split
+        # # Normalize, cast, and concatenate per split
+        # for split, ds_list in merged_dataset.items():
+        #     ds_list = [normalize_schema(d, map_batch_size=data_args.add_col_dsname_batch_size) for d in ds_list]
+        #     # ds_list = [ensure_gender_is_string(d, map_batch_size=data_args.add_col_dsname_batch_size) for d in ds_list]
+        #     # ds_list = [force_all_strings(d, map_batch_size=data_args.add_col_dsname_batch_size) for d in ds_list]
+        #     merged_dataset[split] = concatenate_datasets(ds_list)
+
+        from datasets import concatenate_datasets, Features, Value, Audio
+
+        # Định nghĩa schema chuẩn cho toàn bộ pipeline
+        FINAL_FEATURES = Features({
+            "sample_id": Value("string"),
+            "filename": Value("string"),
+            "dataset_name": Value("string"),
+            "audio": Audio(sampling_rate=16000, mono=True),
+            "text": Value("string"),
+            "gender": Value("string"),
+            "dialect": Value("string"),
+            "age": Value("string"),
+            "province_name": Value("string"),
+        })
+
         for split, ds_list in merged_dataset.items():
-            ds_list = [normalize_schema(d, map_batch_size=data_args.add_col_dsname_batch_size) for d in ds_list]
-            # ds_list = [ensure_gender_is_string(d, map_batch_size=data_args.add_col_dsname_batch_size) for d in ds_list]
-            # ds_list = [force_all_strings(d, map_batch_size=data_args.add_col_dsname_batch_size) for d in ds_list]
-            merged_dataset[split] = concatenate_datasets(ds_list)
+            merged_dataset[split] = concatenate_datasets(ds_list, features=FINAL_FEATURES)
 
         merged_dataset = DatasetDict(merged_dataset)
 
