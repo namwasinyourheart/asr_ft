@@ -377,15 +377,15 @@ def add_column_filename(dataset, col_audio="audio", col_name="filename", prefix=
                     path = dset.features[col_audio].decode_example(audio_val).get("path", None)
                 filenames.append(os.path.basename(path) if path else "")
 
-        # --- Fast path
-        try:
-            values = pa.array(filenames, type=pa.string())
-            new_splits[split] = dset.add_column(col_name, values)
-            continue
-        except ArrowInvalid:
-            print(f"[WARN] Fallback to safe_map for split '{split}' (ArrowInvalid offset overflow).")
-        except Exception as e:
-            print(f"[WARN] Fallback to safe_map for split '{split}' due to error: {e}")
+        # # --- Fast path
+        # try:
+        #     values = pa.array(filenames, type=pa.string())
+        #     new_splits[split] = dset.add_column(col_name, values)
+        #     continue
+        # except ArrowInvalid:
+        #     print(f"[WARN] Fallback to safe_map for split '{split}' (ArrowInvalid offset overflow).")
+        # except Exception as e:
+        #     print(f"[WARN] Fallback to safe_map for split '{split}' due to error: {e}")
 
         # --- Fallback: safe_map
         def _add_col(batch, indices):
@@ -435,17 +435,17 @@ def add_column_datasetname(dataset, ds_name, initial_batch_size=10000, col_name=
             new_splits[split] = dset
             continue
 
-        n = len(dset)
+        # n = len(dset)
 
-        # --- Fast path: pyarrow add_column
-        try:
-            values = pa.array([ds_name] * n, type=pa.string())
-            new_splits[split] = dset.add_column(col_name, values)
-            continue
-        except ArrowInvalid:
-            print(f"[WARN] Fallback to safe_map for split '{split}' (ArrowInvalid offset overflow).")
-        except Exception as e:
-            print(f"[WARN] Fallback to safe_map for split '{split}' due to error: {e}")
+        # # --- Fast path: pyarrow add_column
+        # try:
+        #     values = pa.array([ds_name] * n, type=pa.string())
+        #     new_splits[split] = dset.add_column(col_name, values)
+        #     continue
+        # except ArrowInvalid:
+        #     print(f"[WARN] Fallback to safe_map for split '{split}' (ArrowInvalid offset overflow).")
+        # except Exception as e:
+        #     print(f"[WARN] Fallback to safe_map for split '{split}' due to error: {e}")
 
         # --- Fallback: safe_map
         def _add_col(batch):
