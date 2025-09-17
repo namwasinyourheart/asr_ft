@@ -454,6 +454,28 @@ def ensure_gender_is_string(ds, map_batch_size: int = 1024):
     # ds = ds.cast_column("gender", Value("string"))
     return ds
 
+from datasets import Value, ClassLabel
+
+def ensure_gender_is_string(ds, map_batch_size: int = 1024):
+    if "gender" not in ds.column_names:
+        ds = ds.add_column("gender", ["na"] * len(ds))
+
+    # Nếu đang là ClassLabel -> convert thủ công
+    if isinstance(ds.features["gender"], ClassLabel):
+        names = ds.features["gender"].names
+        def to_str(batch):
+            return {"gender": [names[x] if x is not None else "na" for x in batch["gender"]]}
+        ds = ds.map(to_str, batched=True, batch_size=map_batch_size, desc="map gender->string")
+
+    # Nếu không phải string -> ép sang str
+    def force_str(batch):
+        return {"gender": [str(x) if x is not None else "na" for x in batch["gender"]]}
+    ds = ds.map(force_str, batched=True, batch_size=map_batch_size, desc="force gender->string")
+
+    return ds
+
+
+
 
 def force_all_strings(ds, target: str = "string", map_batch_size: int = 1024):
     """
@@ -493,6 +515,7 @@ def normalize_schema(ds, map_batch_size: int = 1024):
             print(f"[WARN] Error casting 'audio': {e}")
 
     ds = ensure_gender_is_string(ds, map_batch_size=map_batch_size)
+    ds = force_all_strings(ds, map_batch_size=map_batch_size)
     return ds
 
 
@@ -569,7 +592,7 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
         for split, ds_list in merged_dataset.items():
             ds_list = [normalize_schema(d, map_batch_size=data_args.add_col_dsname_batch_size) for d in ds_list]
             # ds_list = [ensure_gender_is_string(d, map_batch_size=data_args.add_col_dsname_batch_size) for d in ds_list]
-            ds_list = [force_all_strings(d, map_batch_size=data_args.add_col_dsname_batch_size) for d in ds_list]
+            # ds_list = [force_all_strings(d, map_batch_size=data_args.add_col_dsname_batch_size) for d in ds_list]
             merged_dataset[split] = concatenate_datasets(ds_list)
 
         merged_dataset = DatasetDict(merged_dataset)
