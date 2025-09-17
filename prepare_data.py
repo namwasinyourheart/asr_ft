@@ -451,7 +451,7 @@ def ensure_gender_is_string(ds, map_batch_size: int = 1024):
         return {"gender": col}
 
     ds = ds.map(_to_str, batched=True, batch_size=map_batch_size, desc="normalize gender to str")
-    ds = ds.cast_column("gender", Value("string"))
+    # ds = ds.cast_column("gender", Value("string"))
     return ds
 
 
