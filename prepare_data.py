@@ -499,6 +499,43 @@ def force_all_strings(ds, target: str = "string", map_batch_size: int = 1024):
     ds = ds.cast(new_features, batch_size=map_batch_size)
     return ds
 
+from datasets import Value, ClassLabel
+
+def force_all_strings(ds, target: str = "string", map_batch_size: int = 1024):
+    """
+    Convert all non-audio columns to `Value("string")`, including ClassLabel, int, float,
+    string, large_string.
+    """
+    target_value = Value(target)
+    new_features = ds.features.copy()
+
+    # B1. ép schema: tất cả non-audio -> string
+    for col, feature in ds.features.items():
+        if col == "audio":
+            continue
+        if isinstance(feature, (Value, ClassLabel)):  # Value(string/large_string/int/...) or ClassLabel
+            new_features[col] = target_value
+        else:
+            # fallback: ép luôn về string
+            new_features[col] = target_value
+
+    # B2. convert dữ liệu -> string
+    def _batch_convert(batch):
+        out = {}
+        for col in ds.column_names:
+            if col == "audio":
+                out[col] = batch[col]
+            else:
+                out[col] = [str(x) if x is not None else "" for x in batch[col]]
+        return out
+
+    ds = ds.map(_batch_convert, batched=True, batch_size=map_batch_size, desc="force all to string")
+
+    # B3. cast schema để features đồng bộ
+    ds = ds.cast(new_features, batch_size=map_batch_size)
+
+    return ds
+
 
 def normalize_schema(ds, map_batch_size: int = 1024):
     """
@@ -517,6 +554,23 @@ def normalize_schema(ds, map_batch_size: int = 1024):
     ds = ensure_gender_is_string(ds, map_batch_size=map_batch_size)
     ds = force_all_strings(ds, map_batch_size=map_batch_size)
     return ds
+
+def normalize_schema(ds, map_batch_size: int = 1024):
+    # 1. Chuẩn hóa audio
+    if "audio" in ds.column_names:
+        try:
+            ds = ds.cast_column("audio", Audio(sampling_rate=16000, mono=True))
+        except Exception as e:
+            print(f"[WARN] Skipping audio cast: {e}")
+
+    # 2. Ensure gender exists (optional)
+    if "gender" not in ds.column_names:
+        ds = ds.add_column("gender", ["na"] * len(ds))
+
+    # 3. Force tất cả metadata -> string
+    ds = force_all_strings(ds, map_batch_size=map_batch_size)
+    return ds
+
 
 
 # ---------------------------
