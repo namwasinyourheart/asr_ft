@@ -591,6 +591,21 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
     )
     print("prepared_data_dir:", prepared_data_dir)
 
+    from datasets import concatenate_datasets, Features, Value, Audio
+
+    # Định nghĩa schema chuẩn cho toàn bộ pipeline
+    FINAL_FEATURES = Features({
+        "sample_id": Value("string"),
+        "filename": Value("string"),
+        "dataset_name": Value("string"),
+        "audio": Audio(sampling_rate=16000, mono=True),
+        "text": Value("string"),
+        "gender": Value("string"),
+        "dialect": Value("string"),
+        "age": Value("string"),
+        "province_name": Value("string"),
+    })
+
     if not os.path.exists(prepared_data_dir) or data_args.continue_prep:
         merged_dataset = {}
 
@@ -636,7 +651,8 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
             for split in dataset.keys():
                 if split not in merged_dataset:
                     merged_dataset[split] = []
-                merged_dataset[split].append(dataset[split])
+                ds = dataset[split].cast(FINAL_FEATURES)
+                merged_dataset[split].append(ds)
 
         for split, ds_list in merged_dataset.items():
             print("split:", split)
@@ -649,20 +665,7 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
         #     # ds_list = [force_all_strings(d, map_batch_size=data_args.add_col_dsname_batch_size) for d in ds_list]
         #     merged_dataset[split] = concatenate_datasets(ds_list)
 
-        from datasets import concatenate_datasets, Features, Value, Audio
-
-        # Định nghĩa schema chuẩn cho toàn bộ pipeline
-        FINAL_FEATURES = Features({
-            "sample_id": Value("string"),
-            "filename": Value("string"),
-            "dataset_name": Value("string"),
-            "audio": Audio(sampling_rate=16000, mono=True),
-            "text": Value("string"),
-            "gender": Value("string"),
-            "dialect": Value("string"),
-            "age": Value("string"),
-            "province_name": Value("string"),
-        })
+        
 
         for split, ds_list in merged_dataset.items():
             merged_dataset[split] = concatenate_datasets(ds_list, features=FINAL_FEATURES)
