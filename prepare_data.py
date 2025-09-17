@@ -607,14 +607,20 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
     })
 
     def normalize_and_cast(ds, features=FINAL_FEATURES):
-        # 1. Thêm cột còn thiếu
+        # 1. Drop các cột thừa
+        extra_cols = [c for c in ds.column_names if c not in features]
+        if extra_cols:
+            ds = ds.remove_columns(extra_cols)
+
+        # 2. Thêm các cột thiếu
         for col in features.keys():
             if col not in ds.column_names:
                 ds = ds.add_column(col, ["na"] * len(ds))
 
-        # 2. Cast sang schema chuẩn
+        # 3. Cast sang schema chuẩn
         ds = ds.cast(features)
         return ds
+
 
     if not os.path.exists(prepared_data_dir) or data_args.continue_prep:
         merged_dataset = {}
