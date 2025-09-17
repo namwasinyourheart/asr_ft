@@ -622,6 +622,42 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
         return ds
 
 
+    from datasets import concatenate_datasets
+
+    def normalize_and_cast_sharded(ds, features=FINAL_FEATURES, num_shards=8):
+        """
+        Chuẩn hóa schema theo FINAL_FEATURES nhưng tránh overflow bằng cách
+        chia dataset thành nhiều shard nhỏ rồi cast từng shard.
+        """
+        shards = []
+        for i in range(num_shards):
+            shard = ds.shard(num_shards=num_shards, index=i)
+
+            # 1. Drop cột thừa
+            extra_cols = [c for c in shard.column_names if c not in features]
+            if extra_cols:
+                shard = shard.remove_columns(extra_cols)
+
+            # 2. Thêm cột thiếu
+            for col in features.keys():
+                if col not in shard.column_names:
+                    shard = shard.add_column(col, ["na"] * len(shard))
+
+            # 3. Cast từng cột theo features
+            for col, feat in features.items():
+                if col in shard.column_names:
+                    try:
+                        shard = shard.cast_column(col, feat)
+                    except Exception as e:
+                        print(f"[WARN] cast_column failed for {col}: {e}")
+
+            shards.append(shard)
+
+        # Hợp nhất lại
+        return concatenate_datasets(shards)
+
+
+
     if not os.path.exists(prepared_data_dir) or data_args.continue_prep:
         merged_dataset = {}
 
@@ -667,7 +703,8 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
             for split in dataset.keys():
                 if split not in merged_dataset:
                     merged_dataset[split] = []
-                ds = normalize_and_cast(dataset[split], FINAL_FEATURES)
+                # ds = normalize_and_cast(dataset[split], FINAL_FEATURES)
+                ds = normalize_and_cast_sharded(ds, FINAL_FEATURES, num_shards=10)
                 merged_dataset[split].append(ds)
 
         for split, ds_list in merged_dataset.items():
