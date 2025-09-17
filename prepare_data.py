@@ -395,7 +395,6 @@ def add_column_filename(dataset, col_audio="audio", col_name="filename", prefix=
             dset,
             lambda batch, indices: _add_col(batch, indices),
             initial_batch_size=initial_batch_size,
-            batched=True,
             with_indices=True,
             desc=f"Adding {col_name} (safe_map) to {split}"
         )
@@ -456,7 +455,6 @@ def add_column_datasetname(dataset, ds_name, initial_batch_size=10000, col_name=
             dset,
             _add_col,
             initial_batch_size=initial_batch_size,
-            batched=True,
             desc=f"Adding {col_name} (safe_map) to {split}"
         )
 
