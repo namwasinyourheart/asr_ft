@@ -678,7 +678,7 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
         
 
         for split, ds_list in merged_dataset.items():
-            merged_dataset[split] = concatenate_datasets(ds_list, features=FINAL_FEATURES)
+            merged_dataset[split] = concatenate_datasets(ds_list)
 
         merged_dataset = DatasetDict(merged_dataset)
 
