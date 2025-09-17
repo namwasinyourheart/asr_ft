@@ -1020,13 +1020,13 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
 
             # add dataset_name, unify, add ids/filenames, dtype fixes
             # dataset = add_column_datasetname(dataset, ds_name, data_args.add_col_dsname_batch_size)
-            dataset = add_column_datasetname(dataset,ds_name, initial_batch_size=10000)
+            dataset = add_column_datasetname(dataset,ds_name, initial_batch_size=5000)
             dataset = unify_colnames(dataset)
             dataset = unify_splitnames(dataset)
             dataset = add_sample_id(dataset)
 
             # dataset = add_column_filename(dataset, col_audio="audio", col_name="filename", prefix=None, map_batch_size=data_args.add_col_dsname_batch_size)
-            dataset = add_column_filename(dataset, col_audio="audio", col_name="filename", prefix=None, initial_batch_size=10000)
+            dataset = add_column_filename(dataset, col_audio="audio", col_name="filename", prefix=None, initial_batch_size=5000)
 
             dataset = unify_sample_id_dtype(dataset, dtype="string", map_batch_size=data_args.add_col_dsname_batch_size)
 
