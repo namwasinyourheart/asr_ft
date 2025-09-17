@@ -661,6 +661,50 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
         return concatenate_datasets(shards)
 
 
+        from datasets import concatenate_datasets
+
+    def normalize_and_cast_auto_shard(ds, features=FINAL_FEATURES, shard_threshold=20000, max_shards=8):
+        """
+        Chuẩn hóa schema theo FINAL_FEATURES.
+        Nếu dataset quá lớn (rows > shard_threshold), sẽ chia shard để tránh overflow.
+        """
+        num_rows = len(ds)
+        if num_rows > shard_threshold:
+            num_shards = min(max_shards, max(1, num_rows // shard_threshold))
+            print(f"[INFO] Using {num_shards} shards for dataset with {num_rows} rows")
+            shards = []
+            for i in range(num_shards):
+                shard = ds.shard(num_shards=num_shards, index=i)
+                shard = _normalize_and_cast_single(shard, features)
+                shards.append(shard)
+            return concatenate_datasets(shards)
+        else:
+            return _normalize_and_cast_single(ds, features)
+
+
+    def _normalize_and_cast_single(ds, features):
+        # 1. Drop cột thừa
+        extra_cols = [c for c in ds.column_names if c not in features]
+        if extra_cols:
+            ds = ds.remove_columns(extra_cols)
+
+        # 2. Thêm cột thiếu
+        for col in features.keys():
+            if col not in ds.column_names:
+                ds = ds.add_column(col, ["na"] * len(ds))
+
+        # 3. Cast từng cột
+        for col, feat in features.items():
+            if col in ds.column_names:
+                try:
+                    ds = ds.cast_column(col, feat)
+                except Exception as e:
+                    print(f"[WARN] cast_column failed for {col}: {e}")
+
+        return ds
+
+
+
 
     if not os.path.exists(prepared_data_dir) or data_args.continue_prep:
         merged_dataset = {}
@@ -708,7 +752,8 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
                 if split not in merged_dataset:
                     merged_dataset[split] = []
                 # ds = normalize_and_cast(dataset[split], FINAL_FEATURES)
-                ds = normalize_and_cast_sharded(dataset[split], FINAL_FEATURES, num_shards=10)
+                # ds = normalize_and_cast_sharded(dataset[split], FINAL_FEATURES, num_shards=10)
+                ds = normalize_and_cast_auto_shard(dataset[split], FINAL_FEATURES, shard_threshold=20000, max_shards=8)
                 merged_dataset[split].append(ds)
 
         for split, ds_list in merged_dataset.items():
