@@ -432,7 +432,8 @@ def ensure_gender_is_string(ds, map_batch_size: int = 1024):
     """Ensure 'gender' column exists and is string dtype."""
     if "gender" not in ds.column_names:
         ds = ds.add_column("gender", ["na"] * len(ds))
-        return ds.cast_column({"gender": Value("string")})
+        # return ds.cast_column({"gender": Value("string")})
+        return ds.cast_column("gender", Value("string"))
 
     def _to_str(batch):
         col = []
