@@ -606,6 +606,16 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
         "province_name": Value("string"),
     })
 
+    def normalize_and_cast(ds, features=FINAL_FEATURES):
+        # 1. Thêm cột còn thiếu
+        for col in features.keys():
+            if col not in ds.column_names:
+                ds = ds.add_column(col, ["na"] * len(ds))
+
+        # 2. Cast sang schema chuẩn
+        ds = ds.cast(features)
+        return ds
+
     if not os.path.exists(prepared_data_dir) or data_args.continue_prep:
         merged_dataset = {}
 
@@ -651,7 +661,7 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
             for split in dataset.keys():
                 if split not in merged_dataset:
                     merged_dataset[split] = []
-                ds = dataset[split].cast(FINAL_FEATURES)
+                ds = normalize_and_cast(dataset[split], FINAL_FEATURES)
                 merged_dataset[split].append(ds)
 
         for split, ds_list in merged_dataset.items():
