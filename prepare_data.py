@@ -695,7 +695,7 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
 
         # Cast cột gender trước
         if "gender" in ds.column_names:
-            ds = ds.map(lambda x: {"gender": str(x["gender"])}, batched=True, batch_size=500)
+            ds = ds.map(lambda x: {"gender": str(x["gender"])})
 
         # # 3. Cast từng cột
         # for col, feat in features.items():
