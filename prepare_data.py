@@ -693,6 +693,10 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
             if col not in ds.column_names:
                 ds = ds.add_column(col, ["na"] * len(ds))
 
+        # Cast cột gender trước
+        if "gender" in ds.column_names:
+            ds = ds.map(lambda x: {"gender": str(x["gender"])})
+
         # 3. Cast từng cột
         for col, feat in features.items():
             if col in ds.column_names:
