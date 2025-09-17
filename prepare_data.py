@@ -28,8 +28,8 @@ from transformers import set_seed
 from tqdm.auto import tqdm
 
 from src.utils.audio_utils import (
-    add_column_datasetname,
-    add_column_filename,
+    # add_column_datasetname,
+    # add_column_filename,
     add_sample_id,
     get_filename2sid,
     get_sid2meta,
@@ -329,6 +329,138 @@ def safe_map(dataset, func, initial_batch_size=10000, min_batch_size=1, **kwargs
             else:
                 raise
     raise RuntimeError(f"Cannot process dataset: batch size < {min_batch_size} still fails.")
+import os
+import pyarrow as pa
+from pyarrow.lib import ArrowInvalid
+from datasets import DatasetDict
+from tqdm import tqdm
+
+def add_column_filename(dataset, col_audio="audio", col_name="filename", prefix=None, initial_batch_size=10000):
+    """
+    Add a 'filename' column to each split in a DatasetDict.
+    - If audio has valid paths, use basenames.
+    - If no paths exist at all, generate synthetic IDs
+      (00001.wav, sample_00001.wav, etc.).
+    - Tries fast add_column with pyarrow.string.
+    - Falls back to safe_map if ArrowInvalid offset overflow or OOM occurs.
+    """
+    new_splits = {}
+    for split in tqdm(dataset, desc="Adding filename"):
+        dset = dataset[split]
+
+        if col_name in dset.column_names:
+            new_splits[split] = dset
+            continue
+
+        # Peek first example → check if audio paths exist
+        first_ex = dset[0][col_audio]
+        if isinstance(first_ex, dict):
+            has_path = bool(first_ex.get("path"))
+        else:
+            has_path = bool(dset.features[col_audio].decode_example(first_ex).get("path"))
+
+        if not has_path:
+            # generate synthetic IDs
+            width = len(str(len(dset)))
+            if prefix is None:
+                filenames = [f"{i:0{width}d}.wav" for i in range(len(dset))]
+            else:
+                filenames = [f"{prefix}_{i:0{width}d}.wav" for i in range(len(dset))]
+        else:
+            # extract basenames
+            filenames = []
+            for ex in dset:
+                audio_val = ex[col_audio]
+                if isinstance(audio_val, dict):
+                    path = audio_val.get("path", None)
+                else:
+                    path = dset.features[col_audio].decode_example(audio_val).get("path", None)
+                filenames.append(os.path.basename(path) if path else "")
+
+        # --- Fast path
+        try:
+            values = pa.array(filenames, type=pa.string())
+            new_splits[split] = dset.add_column(col_name, values)
+            continue
+        except ArrowInvalid:
+            print(f"[WARN] Fallback to safe_map for split '{split}' (ArrowInvalid offset overflow).")
+        except Exception as e:
+            print(f"[WARN] Fallback to safe_map for split '{split}' due to error: {e}")
+
+        # --- Fallback: safe_map
+        def _add_col(batch, indices):
+            return {col_name: [filenames[i] for i in indices]}
+
+        new_splits[split] = safe_map(
+            dset,
+            lambda batch, indices: _add_col(batch, indices),
+            initial_batch_size=initial_batch_size,
+            batched=True,
+            with_indices=True,
+            desc=f"Adding {col_name} (safe_map) to {split}"
+        )
+
+    return DatasetDict(new_splits)
+
+
+
+from datasets import DatasetDict
+import pyarrow as pa
+from tqdm import tqdm
+from pyarrow.lib import ArrowInvalid
+
+def add_column_datasetname(dataset, ds_name, initial_batch_size=10000, col_name="dataset_name"):
+    """
+    Add a dataset_name column to each split in a DatasetDict.
+    - Tries fast pyarrow.add_column (large_string).
+    - Falls back to safe_map if ArrowInvalid offset overflow or OOM occurs.
+
+    Args:
+        dataset (DatasetDict): HuggingFace DatasetDict
+        ds_name (str|None): dataset name to fill
+        initial_batch_size (int): initial batch size for safe_map fallback
+        col_name (str): column name to add (default "dataset_name")
+
+    Returns:
+        DatasetDict: with dataset_name column added
+    """
+    if ds_name is None:
+        return dataset
+
+    new_splits = {}
+    for split in tqdm(dataset, desc="Adding dataset_name"):
+        dset = dataset[split]
+
+        if col_name in dset.column_names:
+            new_splits[split] = dset
+            continue
+
+        n = len(dset)
+
+        # --- Fast path: pyarrow add_column
+        try:
+            values = pa.array([ds_name] * n, type=pa.string())
+            new_splits[split] = dset.add_column(col_name, values)
+            continue
+        except ArrowInvalid:
+            print(f"[WARN] Fallback to safe_map for split '{split}' (ArrowInvalid offset overflow).")
+        except Exception as e:
+            print(f"[WARN] Fallback to safe_map for split '{split}' due to error: {e}")
+
+        # --- Fallback: safe_map
+        def _add_col(batch):
+            length = len(next(iter(batch.values())))
+            return {col_name: [ds_name] * length}
+
+        new_splits[split] = safe_map(
+            dset,
+            _add_col,
+            initial_batch_size=initial_batch_size,
+            batched=True,
+            desc=f"Adding {col_name} (safe_map) to {split}"
+        )
+
+    return DatasetDict(new_splits)
 
 
 
@@ -889,11 +1021,15 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
                 })
 
             # add dataset_name, unify, add ids/filenames, dtype fixes
-            dataset = add_column_datasetname(dataset, ds_name, data_args.add_col_dsname_batch_size)
+            # dataset = add_column_datasetname(dataset, ds_name, data_args.add_col_dsname_batch_size)
+            dataset = add_column_datasetname(dataset,ds_name, initial_batch_size=10000)
             dataset = unify_colnames(dataset)
             dataset = unify_splitnames(dataset)
             dataset = add_sample_id(dataset)
-            dataset = add_column_filename(dataset, col_audio="audio", col_name="filename", prefix=None, map_batch_size=data_args.add_col_dsname_batch_size)
+
+            # dataset = add_column_filename(dataset, col_audio="audio", col_name="filename", prefix=None, map_batch_size=data_args.add_col_dsname_batch_size)
+            dataset = add_column_filename(dataset, col_audio="audio", col_name="filename", prefix=None, initial_batch_size=10000)
+
             dataset = unify_sample_id_dtype(dataset, dtype="string", map_batch_size=data_args.add_col_dsname_batch_size)
 
             for i, split in enumerate(dataset.keys()):
