@@ -714,6 +714,110 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
 
 
 
+    from datasets import concatenate_datasets, Audio, Value
+    from pyarrow.lib import ArrowInvalid
+
+    def normalize_and_cast_auto_shard(ds, features=FINAL_FEATURES, shard_threshold=20000, max_shards=8, fallback_batch_size=1024):
+        """
+        Chuẩn hóa schema theo FINAL_FEATURES.
+        Nếu dataset quá lớn (rows > shard_threshold), sẽ chia shard để tránh overflow.
+        Fallback: nếu pyarrow offset overflow → dùng batched map với casting đúng.
+        """
+        num_rows = len(ds)
+
+        def _process_shard(shard):
+            try:
+                return _normalize_and_cast_single(shard, features)
+            except ArrowInvalid as e:
+                print(f"[WARN] ArrowInvalid offset overflow, falling back to batched map: {e}")
+
+                def _normalize_batch(batch):
+                    # 1. Drop cột thừa
+                    batch = {k: v for k, v in batch.items() if k in features}
+
+                    # 2. Thêm cột thiếu
+                    for col in features:
+                        if col not in batch:
+                            batch[col] = ["na"] * len(next(iter(batch.values())))
+
+                    # 3. Cast gender
+                    if "gender" in batch:
+                        batch["gender"] = [str(g) for g in batch["gender"]]
+
+                    # 4. Cast audio & sample_id
+                    if "audio" in batch:
+                        # Không dùng pyarrow trực tiếp, để dạng dict bình thường, convert sau map
+                        batch["audio"] = [
+                            {"path": a["path"], "array": a.get("array", None), "sampling_rate": 16000}
+                            for a in batch["audio"]
+                        ]
+                    if "sample_id" in batch:
+                        batch["sample_id"] = [str(s) for s in batch["sample_id"]]
+
+                    return batch
+
+                shard = shard.map(
+                    _normalize_batch,
+                    batched=True,
+                    batch_size=fallback_batch_size,
+                    desc="Fallback normalization"
+                )
+
+                # Cast audio & sample_id PyArrow sau map
+                if "audio" in shard.column_names:
+                    shard = shard.cast_column("audio", Audio(sampling_rate=16000, mono=True))
+                if "sample_id" in shard.column_names:
+                    shard = shard.cast_column("sample_id", Value("string"))
+
+                return shard
+
+            except Exception as e:
+                print(f"[WARN] Fallback map due to error: {e}")
+                return shard.map(
+                    lambda batch: batch,
+                    batched=True,
+                    batch_size=fallback_batch_size,
+                    desc="Fallback normalization"
+                )
+
+        if num_rows > shard_threshold:
+            num_shards = min(max_shards, max(1, num_rows // shard_threshold))
+            print(f"[INFO] Using {num_shards} shards for dataset with {num_rows} rows")
+            shards = []
+            for i in range(num_shards):
+                shard = ds.shard(num_shards=num_shards, index=i)
+                shard = _process_shard(shard)
+                shards.append(shard)
+            return concatenate_datasets(shards)
+        else:
+            return _process_shard(ds)
+
+
+    def _normalize_and_cast_single(ds, features):
+        # 1. Drop cột thừa
+        extra_cols = [c for c in ds.column_names if c not in features]
+        if extra_cols:
+            ds = ds.remove_columns(extra_cols)
+
+        # 2. Thêm cột thiếu
+        for col in features.keys():
+            if col not in ds.column_names:
+                ds = ds.add_column(col, ["na"] * len(ds))
+
+        # 3. Cast gender
+        if "gender" in ds.column_names:
+            ds = ds.map(lambda x: {"gender": str(x["gender"])})
+
+        # 4. Cast audio & sample_id
+        ds = ds.cast_column("audio", Audio(sampling_rate=16000, mono=True))
+        if "sample_id" in ds.column_names:
+            ds = ds.cast_column("sample_id", Value("string"))
+
+        return ds
+
+
+
+
 
     if not os.path.exists(prepared_data_dir) or data_args.continue_prep:
         merged_dataset = {}
@@ -764,7 +868,7 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
                     merged_dataset[split] = []
                 # ds = normalize_and_cast(dataset[split], FINAL_FEATURES)
                 # ds = normalize_and_cast_sharded(dataset[split], FINAL_FEATURES, num_shards=10)
-                ds = normalize_and_cast_auto_shard(dataset[split], FINAL_FEATURES, shard_threshold=20000, max_shards=8)
+                ds = normalize_and_cast_auto_shard(dataset[split], FINAL_FEATURES, shard_threshold=20000, max_shards=8, fallback_batch_size=data_args.fallback_batch_size)
                 merged_dataset[split].append(ds)
                 
 
