@@ -705,6 +705,8 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
         #         except Exception as e:
         #             print(f"[WARN] cast_column failed for {col}: {e}")
 
+        ds = ds.cast_column("audio", Audio(sampling_rate=16000, mono=True))
+
         return ds
 
 
