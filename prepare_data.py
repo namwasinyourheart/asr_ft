@@ -752,13 +752,16 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
             dataset = add_column_filename(dataset, col_audio="audio", col_name="filename", prefix=None, map_batch_size=data_args.add_col_dsname_batch_size)
             dataset = unify_sample_id_dtype(dataset, dtype="string", map_batch_size=data_args.add_col_dsname_batch_size)
 
-            for split in dataset.keys():
+            for i, split in enumerate(dataset.keys()):
+                if i == 2:
+                    break
                 if split not in merged_dataset:
                     merged_dataset[split] = []
                 # ds = normalize_and_cast(dataset[split], FINAL_FEATURES)
                 # ds = normalize_and_cast_sharded(dataset[split], FINAL_FEATURES, num_shards=10)
                 ds = normalize_and_cast_auto_shard(dataset[split], FINAL_FEATURES, shard_threshold=20000, max_shards=8)
                 merged_dataset[split].append(ds)
+                
 
         for split, ds_list in merged_dataset.items():
             print("split:", split)
