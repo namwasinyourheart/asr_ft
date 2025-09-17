@@ -600,10 +600,10 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
         "dataset_name": Value("string"),
         "audio": Audio(sampling_rate=16000, mono=True),
         "text": Value("string"),
-        "gender": Value("string"),
-        "dialect": Value("string"),
-        "age": Value("string"),
-        "province_name": Value("string"),
+        # "gender": Value("string"),
+        # "dialect": Value("string"),
+        # "age": Value("string"),
+        # "province_name": Value("string"),
     })
 
     def normalize_and_cast(ds, features=FINAL_FEATURES):
