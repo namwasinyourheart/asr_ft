@@ -309,6 +309,29 @@ def prepare_metadata(dataset: DatasetDict, common_processed_data_dir: str):
     return all_sid2meta, all_filename2sid
 
 
+
+def safe_map(dataset, func, initial_batch_size=10000, min_batch_size=1, **kwargs):
+    batch_size = initial_batch_size
+    while batch_size >= min_batch_size:
+        try:
+            return dataset.map(
+                func,
+                batched=True,
+                batch_size=batch_size,
+                **kwargs,
+            )
+        except Exception as e:
+            # Bắt luôn ArrowInvalid hoặc RuntimeError
+            msg = str(e).lower()
+            if "out of memory" in msg or "overflow" in msg:
+                batch_size = batch_size // 2
+                print(f"Batch size too large, reducing to {batch_size}...")
+            else:
+                raise
+    raise RuntimeError(f"Cannot process dataset: batch size < {min_batch_size} still fails.")
+
+
+
 def process_dataset(
     dataset: DatasetDict,
     processor,
@@ -332,15 +355,22 @@ def process_dataset(
     _ = prepare_metadata(dataset, common_processed_data_dir)
 
     # Normalize text
-    dataset = dataset.map(
+    # dataset = dataset.map(
+    #     batch_normalize_text,
+    #     batched=True,
+    #     batch_size=getattr(data_args, "batch_size", 1024),
+    #     num_proc=getattr(data_args, "num_proc", 1),
+    #     desc="Normalizing text...",
+    # )
+
+    dataset = safe_map(
+        dataset,
         batch_normalize_text,
-        batched=True,
-        batch_size=getattr(data_args, "batch_size", 1024),
+        initial_batch_size=10000,
+        min_batch_size=1,
         num_proc=getattr(data_args, "num_proc", 1),
         desc="Normalizing text...",
     )
-
-    batch_fn = batch_compute_features_and_labels_wrapper(processor)
 
     if getattr(data_args, "do_shard_for_feature_computation", False):
         process_sharded_dataset_dict(
