@@ -643,6 +643,10 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
                 if col not in shard.column_names:
                     shard = shard.add_column(col, ["na"] * len(shard))
 
+            # Cast cột gender trước
+            if "gender" in shard.column_names:
+                shard = shard.map(lambda x: {"gender": str(x["gender"])})
+
             # 3. Cast từng cột theo features
             for col, feat in features.items():
                 if col in shard.column_names:
