@@ -433,7 +433,8 @@ def ensure_gender_is_string(ds, map_batch_size: int = 1024):
     if "gender" not in ds.column_names:
         ds = ds.add_column("gender", ["na"] * len(ds))
         # return ds.cast_column({"gender": Value("string")})
-        return ds.cast_column("gender", Value("string"))
+        # return ds.cast_column("gender", Value("string"))
+        return ds
 
     def _to_str(batch):
         col = []
@@ -560,10 +561,14 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
                     merged_dataset[split] = []
                 merged_dataset[split].append(dataset[split])
 
+        for split, ds_list in merged_dataset.items():
+            print("split:", split)
+            print("ds_list:", ds_list)
+
         # Normalize, cast, and concatenate per split
         for split, ds_list in merged_dataset.items():
             ds_list = [normalize_schema(d, map_batch_size=data_args.add_col_dsname_batch_size) for d in ds_list]
-            ds_list = [ensure_gender_is_string(d, map_batch_size=data_args.add_col_dsname_batch_size) for d in ds_list]
+            # ds_list = [ensure_gender_is_string(d, map_batch_size=data_args.add_col_dsname_batch_size) for d in ds_list]
             ds_list = [force_all_strings(d, map_batch_size=data_args.add_col_dsname_batch_size) for d in ds_list]
             merged_dataset[split] = concatenate_datasets(ds_list)
 
