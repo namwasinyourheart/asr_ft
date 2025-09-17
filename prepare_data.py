@@ -719,8 +719,8 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
         merged_dataset = {}
 
         for i, ds_cfg in enumerate(data_args.datasets):
-            if i == 2:
-                break
+            # if i == 2:
+            #     break
             ds_name = ds_cfg.get("name", "unknown")
             hf_raw_data_dir = ds_cfg.get("hf_raw_data_dir", os.path.join(root_data_dir, "raw", "hf", ds_name))
             dataset_script_path = ds_cfg.get("dataset_script_path")
