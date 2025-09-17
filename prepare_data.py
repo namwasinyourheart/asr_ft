@@ -707,8 +707,8 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
 
         ds = ds.cast_column("audio", Audio(sampling_rate=16000, mono=True))
 
-        if "sample_id" in ds.column_names:
-            ds = ds.cast_column("sample_id", Value("string"))
+        # if "sample_id" in ds.column_names:
+        #     ds = ds.cast_column("sample_id", Value("string"))
 
         return ds
 
@@ -861,7 +861,7 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
             dataset = unify_splitnames(dataset)
             dataset = add_sample_id(dataset)
             dataset = add_column_filename(dataset, col_audio="audio", col_name="filename", prefix=None, map_batch_size=data_args.add_col_dsname_batch_size)
-            # dataset = unify_sample_id_dtype(dataset, dtype="string", map_batch_size=data_args.add_col_dsname_batch_size)
+            dataset = unify_sample_id_dtype(dataset, dtype="string", map_batch_size=data_args.add_col_dsname_batch_size)
 
             for i, split in enumerate(dataset.keys()):
                 if split not in merged_dataset:
