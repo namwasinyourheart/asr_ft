@@ -704,7 +704,7 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
                 if split not in merged_dataset:
                     merged_dataset[split] = []
                 # ds = normalize_and_cast(dataset[split], FINAL_FEATURES)
-                ds = normalize_and_cast_sharded(ds, FINAL_FEATURES, num_shards=10)
+                ds = normalize_and_cast_sharded(dataset[split], FINAL_FEATURES, num_shards=10)
                 merged_dataset[split].append(ds)
 
         for split, ds_list in merged_dataset.items():
