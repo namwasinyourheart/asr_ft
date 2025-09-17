@@ -868,7 +868,8 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
                     merged_dataset[split] = []
                 # ds = normalize_and_cast(dataset[split], FINAL_FEATURES)
                 # ds = normalize_and_cast_sharded(dataset[split], FINAL_FEATURES, num_shards=10)
-                ds = normalize_and_cast_auto_shard(dataset[split], FINAL_FEATURES, shard_threshold=10000, max_shards=8, fallback_batch_size=data_args.fallback_batch_size)
+                # ds = normalize_and_cast_auto_shard(dataset[split], FINAL_FEATURES, shard_threshold=20000, max_shards=8, fallback_batch_size=data_args.fallback_batch_size)
+                ds = normalize_and_cast_auto_shard(dataset[split], FINAL_FEATURES, shard_threshold=10000, max_shards=8)
                 merged_dataset[split].append(ds)
                 
 
