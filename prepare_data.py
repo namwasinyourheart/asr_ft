@@ -647,13 +647,13 @@ def prepare_multi_data(exp_args, data_args, model_args, device_args):
             if "gender" in shard.column_names:
                 shard = shard.map(lambda x: {"gender": str(x["gender"])})
 
-            # 3. Cast từng cột theo features
-            for col, feat in features.items():
-                if col in shard.column_names:
-                    try:
-                        shard = shard.cast_column(col, feat)
-                    except Exception as e:
-                        print(f"[WARN] cast_column failed for {col}: {e}")
+            # # 3. Cast từng cột theo features
+            # for col, feat in features.items():
+            #     if col in shard.column_names:
+            #         try:
+            #             shard = shard.cast_column(col, feat)
+            #         except Exception as e:
+            #             print(f"[WARN] cast_column failed for {col}: {e}")
 
             shards.append(shard)
 
