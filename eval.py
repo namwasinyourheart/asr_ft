@@ -419,7 +419,8 @@ def main():
                 # fn = batch["filename"][i]
                 pred = predictions[i]
                 label = ground_truth[i]
-                meta = all_sid2meta['test'][str(sid)]
+                # meta = all_sid2meta['test'][str(sid)]
+                meta = all_sid2meta['test'].get(str(sid), {})
                 sample_wer, S, D, I, N = calculate_wer_per_sample(label, pred)
 
                  # Append prediction info
@@ -438,7 +439,8 @@ def main():
             
     
             for i, sid in enumerate(batch["sample_id"]):
-                meta = all_sid2meta['test'][str(sid)]
+                # meta = all_sid2meta['test'][str(sid)]
+                meta = all_sid2meta['test'].get(str(sid), {})
                 for key in grouped_preds.keys():
 
                     if key not in meta:   # <-- skip missing entirely
