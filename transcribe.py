@@ -95,6 +95,37 @@ def load_model_for_transcribe(model_args, device_args):
 
     return model
 
+def load_model_for_transcribe(model_args, device_args):
+    """
+    Load model for transcription, supporting multiple adapter merges.
+
+    Args:
+    - model_args (dict): Model arguments, including `pretrained_model_name_or_path` and optional `adapter_path`.
+      adapter_path can be a string or a list of strings.
+    - device_args (dict): Device arguments, including `use_cpu` and optional `device_map`.
+
+    Returns:
+    - model (PreTrainedModel): The loaded model.
+    """
+    model = load_whisper_model(model_args, device_args)
+
+    model.config.forced_decoder_ids = None
+    model.config.suppress_tokens = []
+
+    if model_args.adapter_paths:
+        print("Merging adapters...")
+        from peft import PeftModel
+        adapter_paths = model_args.adapter_paths
+        if isinstance(adapter_paths, str):
+            adapter_paths = [adapter_paths]  # convert to list if single path
+
+        for path in adapter_paths:
+            model = PeftModel.from_pretrained(model, path)
+            model = model.merge_and_unload()  # merge current adapter into base model
+
+    return model
+
+
 def parse_args():
     import argparse
     parser = argparse.ArgumentParser(description="Load generation config.")
