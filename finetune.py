@@ -585,10 +585,16 @@ def main():
     # Loading model and processor
     model = load_whisper_model(model_args, device_args)
 
-    if model_args.adapter_path:
+    if model_args.adapter_paths:
+        print("Merging adapters...")
         from peft import PeftModel
-        model = PeftModel.from_pretrained(model, model_args.adapter_path)
-        model = model.merge_and_unload()
+        adapter_paths = model_args.adapter_paths
+        if isinstance(adapter_paths, str):
+            adapter_paths = [adapter_paths]  # convert to list if single path
+
+        for path in adapter_paths:
+            model = PeftModel.from_pretrained(model, path)
+            model = model.merge_and_unload()  # merge current adapter into base model
 
     model.config.forced_decoder_ids = None
     model.config.suppress_tokens = []
