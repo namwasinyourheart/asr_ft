@@ -672,7 +672,7 @@ def listen_audio(waveform, sr=16000):
         waveform: torch.Tensor 1D/2D hoặc np.ndarray
         sr: int, sampling rate
     """
-
+    import torch
     from IPython.display import Audio, display
     
     

@@ -1,11 +1,55 @@
 CUDA_VISIBLE_DEVICES=0 python prepare_data.py \
-    --config_path="configs/12092025/vivos__openai_whisper-large-v3-turbo.yaml" \
+    --config_path="configs/12092025/vlsp2020__openai_whisper-large-v3-turbo.yaml" \
     exp_manager.exp_variant="exp0" \
     data.use_existing_hfds=false \
-    data.root_data_dir="/media/nampv1/hdd/data/VIVOS/" \
-    data.source_data_dir="/media/nampv1/hdd/data/VIVOS/raw/vivos" \
-    data.hf_raw_data_dir="/media/nampv1/hdd/data/VIVOS/raw/hf" \
-    data.prepared_data_dir="/media/nampv1/hdd/data/VIVOS/exps/toy" \
+    data.root_data_dir="/media/nampv1/hdd/data/ASR-VLSP2020-VINAI-100H/" \
+    data.prepared_data_dir="/media/nampv1/hdd/data/ASR-VLSP2020-VINAI-100H/exps/toy1" \
+    data.source_data_dir="/media/nampv1/hdd/data/ASR-VLSP2020-VINAI-100H/raw/vlsp2020" \
+    data.hf_raw_data_dir="/media/nampv1/hdd/data/ASR-VLSP2020-VINAI-100H/raw/hf" \
     data.do_shard_for_feature_computation=False \
     data.num_proc=1 \
     data.subset_ratio=0.01
+
+
+
+CUDA_VISIBLE_DEVICES=0 python prepare_data.py \
+    --config_path="configs/12092025/vlsp2020__openai_whisper-large-v3-turbo.yaml" \
+    exp_manager.exp_variant="prepare_data_toy" \
+    data.use_existing_hfds=true \
+    data.hf_raw_data_dir="/media/nampv1/hdd/data/ASR-VLSP2020-VINAI-100H/raw/hf" \
+    data.do_split=true \
+    data.root_data_dir="/media/nampv1/hdd/data/ASR-VLSP2020-VINAI-100H" \
+    data.prepared_data_dir=null \
+    data.do_shard_for_feature_computation=False \
+    data.num_proc=1 \
+    data.batch_size=4000
+
+
+
+CUDA_VISIBLE_DEVICES=0 python eval.py \
+    --config_path="configs/12092025/vlsp2020__openai_whisper-large-v3-turbo.yaml" \
+    exp_manager.exp_variant="baseline" \
+    data.prepared_data_dir="/media/nampv1/hdd/data/ASR-VLSP2020-VINAI-100H/exps/vlsp2020__openai_whisper-large-v3-turbo__toy" \
+    evaluate.break_step=1 \
+    evaluate.batch_size=1 \
+    evaluate.metric_filename="test_metrics_baseline_toy.txt" \
+    evaluate.prediction_filename="test_predictions_baseline_toy.txt" \
+    evaluate.result_filename="test_result_baseline_toy.txt" \
+    +data.common_processed_data_dir="/media/nampv1/hdd/data/ASR-VLSP2020-VINAI-100H/exps/processed"
+
+
+
+CUDA_VISIBLE_DEVICES=0 python eval.py \
+    --config_path="configs/12092025/vlsp2020__openai_whisper-large-v3-turbo.yaml" \
+    exp_manager.exp_variant="toy" \
+    data.prepared_data_dir=null \
+    data.hf_raw_data_dir="/media/nampv1/hdd/data/ASR-VLSP2020-VINAI-100H/raw/hf" \
+    data.do_split=true \
+    data.do_shard_for_feature_computation=False \
+    data.num_proc=1 \
+    data.subset_ratio=0.01 \
+    evaluate.break_step=1 \
+    evaluate.batch_size=48 \
+    evaluate.metric_filename="test_metrics_toy.txt" \
+    evaluate.prediction_filename="test_predictions_toy.txt" \
+    evaluate.result_filename="test_result_toy.txt"

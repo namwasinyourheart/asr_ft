@@ -1,20 +1,44 @@
 solve-it-easy/
 models/
 .env
-data/
+!data/examples/
+data/phone_call_record
 voiceai.stt/
 toy_docker/
 
 
 # Ignore all Python compiled files
-*/*.pyc
-*/__pycache__/
+*_.pyc
+*__pycache__/
 
 
 exps/
 
-.gitignore
+# .gitignore
 
 draft/
+notebooks/draft.ipynb
 
 wandb/
+
+# configs/
+
+zip_for_upload/
+
+# src/utils/audio_utils__.py
+src/utils/consts.py
+
+.gitignore
+
+*copy*
+voiceai.stt
+enhance_audio
+postprocessing
+
+results
+
+md
+
+prepare_data1.py
+
+tests

@@ -1,1 +1,41 @@
 python -c "from print_cfg import print_cfg; print_cfg('config.yaml', 'model.optimizer')"
+
+!python prepare_data.py  \
+    --config_path=configs/28082025/openai_whisper-large-v3-turbo__vimd.yaml \
+    exp_manager.exp_variant='preprocess_text' \
+    "exp_manager.exp_notes='data preprocess: preprocess text, filter outaudio, labels with length exceeded'" \
+    data.raw_data_dir='/mnt/data-vol/vnpost-asr/ViMD/raw' \
+    data.common_processed_data_dir='/mnt/data-vol/vnpost-asr/ViMD/processed' \
+    data.exps_data_dir='/mnt/data-vol/vnpost-asr/ViMD/exps'
+
+
+
+!python eval \
+    --config_path=configs/28082025/openai_whisper-large-v3-turbo__vimd.yaml \
+    exp_manager.exp_variant='wo_ft' \
+    data.raw_data_dir='/mnt/data-vol/vnpost-asr/ViMD/raw' \
+    data.common_processed_data_dir='/mnt/data-vol/vnpost-asr/ViMD/processed' \
+    data.exps_data_dir='/mnt/data-vol/vnpost-asr/ViMD/exps'
+
+
+
+
+
+!python finetune.py  \
+    --config_path=configs/28082025/openai_whisper-large-v3-turbo__vimd.yaml \
+    data.raw_data_dir=/mnt/data-vol/vnpost-asr/ViMD/raw \
+    data.common_processed_data_dir=/mnt/data-vol/vnpost-asr/ViMD/processed \
+    data.exps_data_dir=/mnt/data-vol/vnpost-asr/ViMD/exps \
+    data.prepared_data_dir=/mnt/data-vol/vnpost-asr/ViMD/exps/openai_whisper-large-v3-turbo__vimd__wo_ft \
+    exp_manager.exp_variant=ft1 \
+    train.use_peft=true \
+    train.val_n_samples=128 \
+    train.test_n_samples=-1 \
+    train.train_args.save_strategy=steps\\
+    +train.train_args.save_steps=5 \
+    train.train_args.per_device_train_batch_size=128 \
+    train.train_args.per_device_eval_batch_size=256 \
+    train.train_args.learning_rate=1e-6 \
+    train.train_args.eval_on_start=false \
+    train.do_resume_from_checkpoint=true \
+    train.train_args.resume_from_checkpoint=exps/openai_whisper-large-v3-turbo__vimd/ft1/checkpoints/checkpoint-8

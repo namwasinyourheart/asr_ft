@@ -38,6 +38,7 @@ data:
       test_ratio: 0.1
       val_ratio: 0.1
       subset_ratio: 1
+      save_hfds: false
 
     - name: vivos
       dataset_script_path: prepare_data/vivos_hfds/vivos.py
@@ -48,6 +49,7 @@ data:
       test_ratio: 0.1
       val_ratio: 0.1
       subset_ratio: 1
+      save_hfds: true
 
     - name: commonvoice_vi_21
       dataset_script_path: prepare_data/commonvoice_22_vi_hfds/commonvoice_22_vi.py
@@ -58,6 +60,7 @@ data:
       test_ratio: 0.1
       val_ratio: 0.1
       subset_ratio:  1
+      save_hfds: true
 
     - name: vimd
       hf_raw_data_dir: "/media/nampv1/hdd/data/vnpost-asr/ViMD/raw"
@@ -66,6 +69,7 @@ data:
       test_ratio: 0.1
       val_ratio: 0.1
       subset_ratio: 1
+      save_hfds: false
 
     - name: lsvsc
       hf_raw_data_dir: "/media/nampv1/hdd/data/vnpost-asr/LSVSC/raw"
@@ -74,6 +78,7 @@ data:
       test_ratio: 0.1
       val_ratio: 0.1
       subset_ratio: 1
+      save_hfds: false
 
 
     - name: fleurs
@@ -83,6 +88,7 @@ data:
       test_ratio: 0.1
       val_ratio: 0.1
       subset_ratio: 1
+      save_hfds: false
 
     - name: fpt_fosd
       hf_raw_data_dir: "/media/nampv1/hdd/data/ASR-FPT_FOSD/raw/hf"
@@ -91,6 +97,8 @@ data:
       test_ratio: 0.1
       val_ratio: 0.1
       subset_ratio: 1
+      save_hfds: false
+
 
     - name: infore1_25hours
       hf_raw_data_dir: "/media/nampv1/hdd/data/ASR-INFOR1_25hours/raw/hf"
@@ -99,7 +107,7 @@ data:
       test_ratio: 0.1
       val_ratio: 0.1
       subset_ratio: 1
-      
+      save_hfds: false
 
   save_hfds: false
   do_shard_for_feature_computation: false
