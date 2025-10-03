@@ -2,8 +2,10 @@ model:
     # model_type: seq_2_seq_lm #causal_lm
     model_type: asr 
     # pretrained_model_name_or_path: "/home/nampv1/models/asr/vnpost-2/snapshots/e37978b90ca9030d5170a5c07aadb050351a65bb" 
-    pretrained_model_name_or_path: openai/whisper-small
-    pretrained_processor_name_or_path: 
+    # pretrained_model_name_or_path: openai/whisper-large-v3-turbo
+    # pretrained_processor_name_or_path: 
+    pretrained_model_name_or_path: draft/merged_model
+    pretrained_processor_name_or_path: draft/merged_model
     load_in_4bit: true
     load_in_8bit: false
     bnb_4bit_compute_dtype: null
@@ -18,8 +20,8 @@ model:
     adapter_path: null
 
 input:
-    # audio_path: data/examples/example2.wav
-    audio_path: https://drive.google.com/uc?export=download&id=1CcyHCXoS5m9ILgBsWY-RZY52JNaZjjge
+    audio_path: data/examples/example_vietbud500_02.wav
+    # audio_path: https://drive.google.com/uc?export=download&id=1CcyHCXoS5m9ILgBsWY-RZY52JNaZjjge
 
 
 generate:
