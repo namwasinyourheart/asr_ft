@@ -103,13 +103,12 @@ def save_cfg(cfg, config_path: str):
 # ---------------------------
 def preprocess_text(text: str) -> str:
     """Normalize a single text string (NFKC, lowercase, remove punctuation/hyphens)."""
-    if text is None:
-        return text
-    txt = unicodedata.normalize("NFKC", text)
-    txt = txt.lower()
-    txt = txt.replace("-", " ")
-    txt = re.sub(f"[{re.escape(string.punctuation)}]", "", txt)
-    return txt
+    text = text.strip()
+    text = unicodedata.normalize("NFKC", text)
+    text = text.lower()
+    text = text.replace("-", " ")
+    text = re.sub(f"[{re.escape(string.punctuation)}]", "", text)
+    return text
 
 
 def normalize_text(example: Dict) -> Dict:
@@ -572,7 +571,12 @@ def create_hf_ds(
     return ds
 
 
-def make_splits(dataset: DatasetDict, test_size=0.1, dev_size=0.1, seed=42) -> DatasetDict:
+def make_splits(
+    dataset: DatasetDict, 
+    test_size=0.1, 
+    dev_size=0.1, 
+    seed=42
+) -> DatasetDict:
     """
     Ensure train/dev/test splits exist. If no 'test' split, create one from train.
     """
@@ -1178,6 +1182,9 @@ def prepare_data(exp_args, data_args, model_args, device_args):
     if not os.path.exists(prepared_data_dir) or data_args.continue_prep:
         if os.path.exists(hf_raw_data_dir) and data_args.use_existing_hfds:
             dataset = load_from_disk(hf_raw_data_dir)
+
+            if data_args.only_load_test_split:
+                dataset = DatasetDict({"test": dataset["test"]})
         else:
             dataset = create_hf_ds(
                 dataset_script_path=data_args.dataset_script_path,
