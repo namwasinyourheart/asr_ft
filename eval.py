@@ -4,7 +4,7 @@ import warnings
 
 import pandas as pd
 import numpy as np
-from datasets import load_dataset, Dataset, DatasetDict
+from datasets import load_dataset, concatenate_datasets, Dataset, DatasetDict
 from torch.utils.data import DataLoader
 
 from hydra import initialize, compose
@@ -14,6 +14,7 @@ from transformers import set_seed
 from src.utils.model_utils import load_whisper_model, load_processor
 
 from src.utils.exp_utils import setup_environment, create_exp_dir
+from src.utils.log_utils import setup_logger
 
 from prepare_data import prepare_data, preprocess_text
 
@@ -28,6 +29,8 @@ import torch
 
 from dataclasses import dataclass
 from typing import Any, Dict, List, Union
+
+logger = setup_logger(__name__)
 
 @dataclass
 class DataCollatorSpeechSeq2SeqWithPadding:
@@ -191,6 +194,8 @@ def save_metrics(metrics, directory, filename):
         
         f.write("-" * 48 + "\n")
 
+    logger.info(f"Metrics saved to {file_path}")
+
 import pandas as pd 
 def summarize_metric(metric_by_group: dict, 
                      model_name: str = "model_1", 
@@ -328,6 +333,8 @@ def main():
 
     (exp_dir, exp_variant_dir, exp_variant_data_dir, exp_variant_checkpoints_dir, exp_variant_results_dir) = create_exp_dir(exp_name, exp_variant, exps_dir)
 
+    logger.info("exp_variant_results_dir: {}".format(exp_variant_results_dir))
+
     # Save configuration if have any changes from the overrides
     config_path = os.path.join(exp_variant_dir, f'{exp_name}__{exp_variant}.yaml')
     save_cfg(cfg, config_path)
@@ -356,9 +363,13 @@ def main():
     
     processor = load_processor(model_args)
     tokenizer = processor.tokenizer
-    
-    test_ds = dataset['test']
 
+    if eval_args.include_train_split and 'train' in dataset:
+        logger.info("Include train split for evaluation")
+        test_ds = concatenate_datasets([dataset['test'], dataset['train']])
+    else:
+        test_ds = dataset['test']
+    
     data_collator = DataCollatorSpeechSeq2SeqWithPadding(
         processor=processor,
         decoder_start_token_id=model.config.decoder_start_token_id,
