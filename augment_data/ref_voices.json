@@ -1,0 +1,19 @@
+
+[
+    {
+        "voice_name": "bdtl_spk1",
+        "ref_audio_path": "/media/nampv1/hdd/data/mẫu-giọng-nhân-viên-nhập-liệu-bưu-cục-thăng-long-24-10-20251024T103708Z-1-001/mẫu-giọng-nhân-viên-nhập-liệu-bưu-cục-thăng-long-24-10/spk1_1.m4a"
+    },
+    {
+        "voice_name": "bdtl_spk2",
+        "ref_audio_path": "/media/nampv1/hdd/data/mẫu-giọng-nhân-viên-nhập-liệu-bưu-cục-thăng-long-24-10-20251024T103708Z-1-001/mẫu-giọng-nhân-viên-nhập-liệu-bưu-cục-thăng-long-24-10/spk2_1.m4a"
+    },
+    {
+        "voice_name": "bdtl_spk3",
+        "ref_audio_path": "/media/nampv1/hdd/data/mẫu-giọng-nhân-viên-nhập-liệu-bưu-cục-thăng-long-24-10-20251024T103708Z-1-001/mẫu-giọng-nhân-viên-nhập-liệu-bưu-cục-thăng-long-24-10/spk3_1.m4a"
+    },
+    {
+        "voice_name": "bdtl_spk4",
+        "ref_audio_path": "/media/nampv1/hdd/data/mẫu-giọng-nhân-viên-nhập-liệu-bưu-cục-thăng-long-24-10-20251024T103708Z-1-001/mẫu-giọng-nhân-viên-nhập-liệu-bưu-cục-thăng-long-24-10/spk4_1.m4a"
+    }
+]
