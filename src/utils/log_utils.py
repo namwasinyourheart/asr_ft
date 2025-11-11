@@ -27,7 +27,7 @@ def setup_logger(name: Union[str, None] = None):
     logger = logging.getLogger(name)
     handler = logging.StreamHandler()
     formatter = ColorFormatter(
-        "%(asctime)s - %(levelname)s - %(message)s",
+        "%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
     handler.setFormatter(formatter)
