@@ -46,7 +46,7 @@ class VoW(datasets.GeneratorBasedBuilder):
         found_configs = 0
 
         # Define the base path for the dictionary
-        base_dict_path = data_path / "generated" / self.DICTIONARY_NAME
+        base_dict_path = data_path / self.DICTIONARY_NAME
         
         # Check for each TTS provider
         for provider in ["gtts", "minimax_selenium"]:
