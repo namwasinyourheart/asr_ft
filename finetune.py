@@ -37,7 +37,7 @@ import torch
 from dataclasses import dataclass
 from typing import Any, Dict, List, Union
 
-from prepare_data import prepare_data, prepare_multi_data
+from prepare_data_no_metadata import prepare_data, prepare_multi_data
 
 @dataclass
 class DataCollatorSpeechSeq2SeqWithPadding:
@@ -560,26 +560,40 @@ def main():
     # dataset, id2meta = prepare_data(exp_args, data_args, model_args, device_args)
 
     if data_args.do_merge:
-        prepared_dataset, all_sid2meta = prepare_multi_data(exp_args, data_args, model_args, device_args)
+        prepared_dataset = prepare_multi_data(exp_args, data_args, model_args, device_args)
     else:
-        prepared_dataset, all_sid2meta = prepare_data(exp_args, data_args, model_args, device_args)
+        prepared_dataset = prepare_data(exp_args, data_args, model_args, device_args)
 
 
-    train_ds, val_ds, test_ds = prepared_dataset['train'], prepared_dataset['val'], prepared_dataset['test']
+    print(prepared_dataset)
 
-    if train_args.train_n_samples:
-        train_ds = get_data_subset(train_args.train_n_samples, train_ds, exp_args.seed)
 
-    if train_args.val_n_samples:
-        val_ds = get_data_subset(train_args.val_n_samples, val_ds, exp_args.seed)
+    train_ds, val_ds, test_ds = (
+        prepared_dataset.get("train"),
+        prepared_dataset.get("val"),
+        prepared_dataset.get("test"),
+    )
 
-    if train_args.test_n_samples:
-        test_ds = get_data_subset(train_args.test_n_samples, test_ds, exp_args.seed)
+    assert "train" and 'val' in prepared_dataset, "Dataset must contain 'train' and 'val' split."
+
+
+    print(train_ds, val_ds, test_ds)
+
+
+    if train_args.train_n_samples and train_ds is not None:
+        train_ds = get_data_subset(train_ds, train_args. train_n_samples, exp_args.seed)
+
+    if train_args.val_n_samples and val_ds is not None:
+        val_ds = get_data_subset(val_ds, train_args.val_n_samples, exp_args.seed)
+
+    if train_args.test_n_samples and test_ds is not None:
+        test_ds = get_data_subset(test_ds, train_args.test_n_samples, exp_args.seed)
 
     # Print lengths
-    print(f"Train size: {len(train_ds)}")
-    print(f"Validation size: {len(val_ds)}")
-    print(f"Test size: {len(test_ds)}")
+    print(f"Train size: {len(train_ds) if train_ds is not None else 0}")
+    print(f"Validation size: {len(val_ds) if val_ds is not None else 0}")
+    print(f"Test size: {len(test_ds) if test_ds is not None else 0}")
+
 
 
     # Loading model and processor
