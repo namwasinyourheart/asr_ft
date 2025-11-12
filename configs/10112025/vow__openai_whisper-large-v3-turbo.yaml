@@ -1,6 +1,6 @@
 exp_manager:
   prj_name: vnpost_asr_ft
-  exp_name: "vow__openai_whisper-large-v3-turbo"
+  exp_name: "vow__vnpost_stt_1.1"
   # exp_name: "vow__openai_whisper-base"
   exp_variant: "prepared_data_toy"
   exp_notes: ""
@@ -31,10 +31,10 @@ data:
 
   do_shard_for_feature_computation: false
   prepared_data_dir: 
-  root_data_dir: "/media/nampv1/hdd/data/Voice-of-Address/"
-  dataset_source_dir: "/media/nampv1/hdd/data/Voice-of-Address/raw/voice_of_address"
-  hf_raw_data_dir: "/media/nampv1/hdd/data/Voice-of-Address/raw/hf"
-  dataset_script_path: "prepare_data/voice_of_address_hfds/voice_of_address.py"
+  root_data_dir: "/media/nampv1/hdd/data/VoW"
+  dataset_source_dir: "/media/nampv1/hdd/data/VoW/raw/generated"
+  hf_raw_data_dir: "/media/nampv1/hdd/data/VoW/raw/hf1_gtts"
+  dataset_script_path: "prepare_data/vow_hfds/VoW.py"
   subset_names: "province__no_prefix__minimax_selenium__default__bdtl_spk2"
   use_existing_hfds: true
   save_hfds: false
@@ -144,6 +144,7 @@ generate:
 
 evaluate:
   include_train_split: true
+  do_postprocess_text: true
   batch_size: 128
   break_step: -1
   metric_filename: 'test_metrics.txt'
