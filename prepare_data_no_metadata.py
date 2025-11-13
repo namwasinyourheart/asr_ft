@@ -1223,6 +1223,7 @@ def prepare_data(exp_args, data_args, model_args, device_args):
     logger.info(f"prepared_data_dir: {prepared_data_dir}")
 
     if not os.path.exists(prepared_data_dir) or data_args.continue_prep:
+        logger.info("Preparing dataset...")
         if os.path.exists(hf_raw_data_dir) and data_args.use_existing_hfds:
             logger.info(f"Loading existing HF dataset from disk {hf_raw_data_dir}")
             dataset = load_from_disk(hf_raw_data_dir)
