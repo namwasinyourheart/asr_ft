@@ -1,6 +1,6 @@
 exp_manager:
   prj_name: vnpost_asr_ft
-  exp_name: "vow__vnpost_stt_1.1"
+  exp_name: "voa__vnpost_stt_1.1"
   # exp_name: "vow__openai_whisper-base"
   exp_variant: "prepared_data_toy"
   exp_notes: ""
@@ -8,7 +8,7 @@ exp_manager:
   seed: 202511
   task_name: 'vi_asr'
   dataset_name: 
-  model_name: 'openai/whisper-large-v3-turbo'
+  model_name: 'vnpost_stt_1.1'
   phase_name: 'eval'
   print_cfg: true
   exps_dir: 'exps'
@@ -31,14 +31,13 @@ data:
 
   do_shard_for_feature_computation: false
   prepared_data_dir: 
-  root_data_dir: "/media/nampv1/hdd/data/VoW"
-  dataset_source_dir: "/media/nampv1/hdd/data/VoW/raw/generated"
-  hf_raw_data_dir: "/media/nampv1/hdd/data/VoW/raw/hf1_gtts"
-  dataset_script_path: "prepare_data/vow_hfds/VoW.py"
+  root_data_dir: "/media/nampv1/hdd/data/VoA"
+  dataset_source_dir: "/media/nampv1/hdd/data/VoA/raw/generated"
+  dataset_script_path: "prepare_data/voa_hfds/VoA.py"
   subset_names: "province__no_prefix__minimax_selenium__default__bdtl_spk2"
   use_existing_hfds: true
+  hf_raw_data_dir: "/media/nampv1/hdd/data/VoA/raw/hf1_gtts"
   save_hfds: false
-  recalculate_metadata: true
   add_col_dsname_batch_size: 1000
  
   streaming: false
