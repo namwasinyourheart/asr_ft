@@ -1265,7 +1265,7 @@ def prepare_data(exp_args, data_args, model_args, device_args):
 
         prepared_dataset = process_dataset(dataset, processor, prepared_data_dir, data_args, exp_args)
 
-        if not os.path.exists(prepared_data_dir):
+        if data_args.do_save_prepared_data and not os.path.exists(prepared_data_dir):
             logger.info(f"Saving prepared dataset to disk {prepared_data_dir}")
             prepared_dataset.save_to_disk(prepared_data_dir)
     else:
