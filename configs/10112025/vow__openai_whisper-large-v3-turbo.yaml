@@ -54,6 +54,7 @@ data:
   batch_size: 1000
   num_shards: 40
   writer_batch_size: 4000
+  do_save_prepared_data: true
 
 
 model: 
