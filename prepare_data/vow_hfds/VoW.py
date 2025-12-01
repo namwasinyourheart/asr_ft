@@ -25,7 +25,7 @@ class VoW(datasets.GeneratorBasedBuilder):
     VERSION = datasets.Version("1.0.0")
     BUILDER_CONFIGS = []
     DEFAULT_CONFIG_NAME = "default"
-    DICTIONARY_NAME = "hongocduc_Viet11K"
+    DICTIONARY_NAME = "hongocduc_Viet74K"
 
     # ------------------------------------------------------------
     # Create dynamic configs

@@ -97,6 +97,26 @@ class VoN(datasets.GeneratorBasedBuilder):
 
         print(f"📊 Total configs found: {found_configs}")
 
+        # Create combined config for all GTTS datasets
+        gtts_configs = [
+            cfg for cfg in configs 
+            if cfg.name.endswith('__gtts__default__vi') and 'minimax_selenium' not in cfg.name
+        ]
+        if gtts_configs:
+            configs.append(
+                VoNConfig(
+                    name="gtts__default__vi",
+                    description="VoN dataset - Combined GTTS datasets",
+                    subset_info={
+                        "is_combined": True,
+                        "subsets_to_combine": [cfg.name for cfg in gtts_configs],
+                        "data_dir": data_dir
+                    },
+                    version=self.VERSION,
+                )
+            )
+            print(f"    ✅ Added combined config: gtts__default__vi")
+
         # Create combined config for all providers
         if found_configs > 0:
             all_subset_names = [cfg.name for cfg in configs]
