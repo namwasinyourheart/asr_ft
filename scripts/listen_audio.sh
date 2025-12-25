@@ -1,0 +1,1 @@
+ffmpeg -re -i /media/nampv1/hdd/data/VoA/raw/generated/cdp_no_prefix/gtts/default/vi/wav/802_Đoài_Dương,_Trùng_Khánh,_Cao_Bằng.wav -f pulse VirtualMic 
