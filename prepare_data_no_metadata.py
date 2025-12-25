@@ -104,24 +104,28 @@ def save_cfg(cfg, config_path: str):
 # ---------------------------
 def preprocess_text(text: str) -> str:
     """Normalize a single text string (NFKC, lowercase, remove punctuation/hyphens)."""
+    import unicodedata, string
     text = text.strip()
     text = unicodedata.normalize("NFKC", text)
     text = text.lower()
     text = text.replace("-", " ")
-    text = re.sub(f"[{re.escape(string.punctuation)}]", "", text)
+    # text = re.sub(f"[{re.escape(string.punctuation)}]", "", text)
+    text = re.sub(r"\s+", " ", text).strip()
     return text
 
 
 def normalize_text(example: Dict) -> Dict:
     """Map-style normalization for a single example."""
-    example["text"] = preprocess_text(example.get("text"))
+    # example["text"] = preprocess_text(example.get("text"))
+    example["text"] = preprocess_text(example.get("text_postprocessed"))
     return example
 
 
 def batch_normalize_text(batch: Dict) -> Dict:
     """Batched map function to normalize a list of texts."""
     texts = []
-    for t in batch.get("text", []):
+    # for t in batch.get("text", []):
+    for t in batch.get("text_postprocessed", []):
         texts.append(preprocess_text(t))
     return {"text": texts}
 

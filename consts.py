@@ -1,5 +1,5 @@
-TEXT_POSTPROCESSING_URL_ENDPOINT = "http://0.0.0.0:13081/asr/v1/postprocess_text"
-
+# TEXT_POSTPROCESSING_URL_ENDPOINT = "http://0.0.0.0:13081/asr/v1/postprocess_text"
+TEXT_POSTPROCESSING_URL_ENDPOINT = "https://ai.vnpost.vn/voiceai/core/stt/v1/postprocess_text"
 
 MODEL_LOCAL_PATHS = [
     "/home/nampv1/.cache/huggingface/hub/models--suzii--vi-whisper-large-v3-turbo-v1/snapshots/dfe4ff961e32e44fd7525a2e71c1bca6abafc471/" # suzii/vi-whisper-large-v3-turbo-v1
