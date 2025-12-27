@@ -110,6 +110,7 @@ def preprocess_text(text: str) -> str:
     text = text.lower()
     text = text.replace("-", " ")
     # text = re.sub(f"[{re.escape(string.punctuation)}]", "", text)
+    text = text.replace(",", "").replace("/", " trên ")
     text = re.sub(r"\s+", " ", text).strip()
     return text
 
