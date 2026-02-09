@@ -7,7 +7,6 @@ peft==0.14.0
 trl==0.14.0
 bitsandbytes==0.47.0
 transformers==4.57.1
-# git+https://github.com/huggingface/transformers
 wandb==0.19.1
 omegaconf==2.3.0
 pyyaml==6.0.2
@@ -19,3 +18,4 @@ colorama==0.4.6
 soundfile==0.13.1
 librosa==0.11.0
 torchcodec==0.6.0  # apt-get install -y ffmpeg
+qwen_asr==0.0.6
