@@ -13,6 +13,8 @@ from transformers import (
     AutoConfig,
     BitsAndBytesConfig
 )
+
+from qwen_asr import Qwen3ASRModel
      
 
 
@@ -51,7 +53,7 @@ def load_tokenizer(tokenizer_args, model_args, prompt_args) -> PreTrainedTokeniz
     return tokenizer
 
 
-def get_model_class(pretrained_model_name_or_path):
+def get_model_class(pretrained_model_name_or_path, architecture, trust_remote_code):
     """
     Dynamically retrieves the model class from Hugging Face transformers 
     using the model's configuration.
@@ -62,11 +64,18 @@ def get_model_class(pretrained_model_name_or_path):
     Returns:
         model_class (transformers.PreTrainedModel): The corresponding model class.
     """ 
-    # Load the model configuration
-    config = AutoConfig.from_pretrained(pretrained_model_name_or_path)
 
-    # Extract the model class name
-    model_class_name = config.architectures[0] if config.architectures else None
+    # Load the model configuration
+    config = AutoConfig.from_pretrained(
+        pretrained_model_name_or_path,
+        trust_remote_code=trust_remote_code
+    )
+
+    if not architecture:
+        # Extract the model class name
+        model_class_name = config.architectures[0] if config.architectures else None
+    else: 
+        model_class_name = architecture
 
     if model_class_name:
         try:
@@ -78,7 +87,87 @@ def get_model_class(pretrained_model_name_or_path):
 
     return AutoModel  # Default to AutoModel if class is not found
 
+def load_model(model_args, device_args) -> PreTrainedModel:
+
+    attn_implementation = model_args['attn_implementation']
+
+    if attn_implementation=='flash-attention-2':
+        # Set torch_dtype and attn_implementation
+        torch_dtype, attn_implementation = set_torch_dtype_and_attn_implementation()
+
+    if model_args['torch_dtype']:
+        torch_dtype = model_args['torch_dtype']
+
+    else: 
+        torch_dtype = 'float16'
+
+    if torch_dtype == 'bfloat16':
+        torch_dtype = torch.bfloat16
+
+    if device_args['use_cpu']:
+        model_args['device_map'] = 'cpu'
+
+    # QLora Config
+    quantization_config = get_quantization_config(model_args)
+
+    model_class = get_model_class(
+        model_args['pretrained_model_name_or_path'], 
+        model_args['architecture'],
+        model_args['trust_remote_code'],
+
+    )
+    
+
+    # Load model
+    model = model_class.from_pretrained(
+            model_args['pretrained_model_name_or_path'],
+            cache_dir=model_args['cache_dir'] if model_args['cache_dir'] else None,
+            dtype=torch_dtype,
+            quantization_config=quantization_config if not device_args['use_cpu'] else None,
+            device_map=model_args['device_map'], # device_map="cpu" if device_args['use_cpu'] else "auto",
+            attn_implementation=attn_implementation,
+            low_cpu_mem_usage=model_args['low_cpu_mem_usage'],  # low_cpu_mem_usage=True if not device_args['use_cpu'] else False
+            trust_remote_code=model_args['trust_remote_code']
+    )
+
+    return model
+
+
+def load_processor(model_args):
+
+    if model_args['pretrained_processor_name_or_path']:
+        processor_name_or_path = model_args['pretrained_processor_name_or_path']
+    else:   
+        processor_name_or_path = model_args['pretrained_model_name_or_path']
+
+    processor = AutoProcessor.from_pretrained(
+        processor_name_or_path,
+        trust_remote_code=model_args['trust_remote_code'],
+
+    )
+
+    return processor
+
+def load_qwen3_asr_model(model_args, device_args) -> PreTrainedModel:
+    model = Qwen3ASRModel.from_pretrained(
+        model_args['pretrained_model_name_or_path'], # Qwen/Qwen3-ASR-1.7B
+        dtype=torch.bfloat16,
+        device_map="cuda:0",
+        # attn_implementation="flash_attention_2",
+        max_inference_batch_size=32, # Batch size limit for inference. -1 means unlimited. Smaller values can help avoid OOM.
+        max_new_tokens=256, # Maximum number of tokens to generate. Set a larger value for long audio input.
+        forced_aligner="Qwen/Qwen3-ForcedAligner-0.6B",
+        forced_aligner_kwargs=dict(
+            dtype=torch.bfloat16,
+            device_map="cuda:0",
+            # attn_implementation="flash_attention_2",
+        ),
+    )
+    return model
+
+
 def load_whisper_model(model_args, device_args) -> PreTrainedModel:
+
 
     attn_implementation = model_args['attn_implementation']
 
@@ -114,7 +203,7 @@ def load_whisper_model(model_args, device_args) -> PreTrainedModel:
     
     return model
 
-def load_processor(model_args):
+def load_whisper_processor(model_args):
         from transformers import AutoProcessor
 
         if model_args['pretrained_processor_name_or_path']:
