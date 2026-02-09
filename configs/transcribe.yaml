@@ -1,12 +1,15 @@
 model:
-    # model_type: seq_2_seq_lm #causal_lm
+    architecture: Qwen3ASRModel #WhisperForConditionalGeneration #Qwen3ASRModel
     model_type: asr 
     # pretrained_model_name_or_path: "/home/nampv1/models/asr/vnpost-2/snapshots/e37978b90ca9030d5170a5c07aadb050351a65bb" 
     # pretrained_model_name_or_path: openai/whisper-large-v3-turbo
-    # pretrained_processor_name_or_path: 
-    pretrained_model_name_or_path: draft/merged_model
-    pretrained_processor_name_or_path: draft/merged_model
-    load_in_4bit: true
+    # pretrained_model_name_or_path: /media/nampv1/hdd/models/asr/merged/vnp__stt_a1
+    # pretrained_model_name_or_path: /home/nampv1/.cache/huggingface/hub/models--suzii--vi-whisper-large-v3-turbo-v1/snapshots/dfe4ff961e32e44fd7525a2e71c1bca6abafc471/
+    pretrained_model_name_or_path: Qwen/Qwen3-ASR-0.6B
+    pretrained_processor_name_or_path:
+    adapter_paths: null
+    cache_dir: 
+    load_in_4bit: false
     load_in_8bit: false
     bnb_4bit_compute_dtype: null
     bnb_4bit_quant_type: "nf4"
@@ -16,16 +19,18 @@ model:
     attn_implementation: #flash_attention_2
     device_map: auto
     low_cpu_mem_usage: null
-    # adapter_path: "/home/nampv1/models/asr/vnpost-1/"
-    adapter_path: null
+    # adapter_path: /media/nampv1/hdd/models/asr/adapters/vnp__stt_a3/checkpoint-2400
+    trust_remote_code: true
 
 input:
-    audio_path: data/examples/example_vietbud500_02.wav
+    # audio_path: data/examples/example_vietbud500_02.wav
     # audio_path: https://drive.google.com/uc?export=download&id=1CcyHCXoS5m9ILgBsWY-RZY52JNaZjjge
+    audio_path: /media/nampv1/hdd/data/Venterprise/raw/generated/Address_HàNội_train_dev_test_minimax/dev_item_part1/minimax_selenium/default/elevenlabs_spk15/wav/0100964054_số_tám_bê_phố_lê_trực,_phường_điện_biên,_quận_ba_đ.wav
 
 
 generate:
     seed: 202508
+    do_postprocess_text: true
     gen_args:
         # max_new_tokens: 440
         num_beams: 5
